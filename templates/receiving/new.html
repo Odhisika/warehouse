@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">Inventory › Receiving › <span class="current">New Inbound</span></div>
+    <div class="page-title">Receiving Module</div>
+  </div>
+  <div class="page-actions">
+    <button class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 6,2 18,2 18,9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print Labels
+    </button>
+    <button class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      Quick Scan
+    </button>
+  </div>
+</div>
+
+<form method="post" style="padding:16px 24px">
+  {% csrf_token %}
+  <!-- Inbound Documentation -->
+  <div class="section-card">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--gray-100)">
+      <span class="section-label">Inbound Documentation</span>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Supplier Name</label>
+        <select class="form-control" name="supplier">
+          <option value="">Select Supplier…</option>
+          {% for s in suppliers %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Invoice Reference #</label>
+        <input class="form-control" type="text" name="invoice_ref" placeholder="INV-00000">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Receive Date</label>
+        <input class="form-control" type="date" name="receive_date" value="{{ today }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">PO Reference</label>
+        <input class="form-control" type="text" name="po_reference" placeholder="PO-XXXX">
+      </div>
+    </div>
+  </div>
+
+  <!-- Product Line Items -->
+  <div class="section-card">
+    <div style="padding:12px 16px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between">
+      <span class="section-label">Product Line Items</span>
+      <button type="button" class="btn btn-primary btn-sm" onclick="addReceivingRow()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Row
+      </button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px"></th>
+            <th>SKU / Product Search</th><th>Batch #</th><th>Expiry Date</th>
+            <th>Qty</th><th>Unit Cost ({{ site_settings.currency_symbol }})</th><th>Condition</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="recv-tbody">
+          <tr>
+            <td><input type="checkbox" class="checkbox"></td>
+            <td style="position:relative;min-width:200px">
+              <input type="text" class="form-control product-search" data-row="1" placeholder="Search SKU or name…" autocomplete="off" style="width:100%">
+              <input type="hidden" name="product_1" value="">
+            </td>
+            <td><input name="batch_1" class="form-control" type="text" placeholder="B-XXX" style="width:90px"></td>
+            <td><input name="expiry_1" class="form-control" type="date" style="width:140px"></td>
+            <td><input name="qty_1" class="form-control" type="number" value="0" min="0" style="width:80px" oninput="updateReceivingTotals()"></td>
+            <td><input name="cost_1" class="form-control" type="number" step="0.01" value="0.00" style="width:100px" oninput="updateReceivingTotals()"></td>
+            <td><select name="condition_1" class="form-control" style="width:120px"><option>Pristine</option><option>Good</option><option>Damaged</option></select></td>
+            <td><button type="button" class="btn btn-sm btn-danger" onclick="this.closest('tr').remove();updateReceivingTotals()">✕</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:var(--gray-50);border-top:1px solid var(--gray-200)">
+      <div style="display:flex;gap:32px">
+        <div><div class="stat-label">Total Items</div><div style="font-size:20px;font-weight:700;margin-top:2px" id="recv-total-units">0 Units</div></div>
+        <div><div class="stat-label">Total Value ({{ site_settings.currency_symbol }})</div><div style="font-size:20px;font-weight:700;margin-top:2px" id="recv-total-value">{{ site_settings.currency_symbol }}0.00</div></div>
+      </div>
+      <div style="font-size:12px;color:var(--gray-500);display:flex;align-items:center;gap:4px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Adjust cost per unit based on invoice details.
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;justify-content:flex-end">
+    <a href="{% url 'receiving_list' %}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">Save Shipment</button>
+  </div>
+</form>
+
+{% block extra_js %}
+<script>
+window.PRODUCT_LIST = [
+  {% for p in products %}{"id": {{ p.pk }}, "sku": "{{ p.sku|escapejs }}", "name": "{{ p.name|escapejs }}"},{% endfor %}
+];
+
+function initProductSearch(input) {
+  var row = input.dataset.row;
+  var hidden = document.querySelector('input[name="product_' + row + '"]');
+  if (!hidden) return;
+
+  function removeFloat() {
+    var el = document.getElementById('search-float-' + row);
+    if (el) el.remove();
+  }
+
+  input.addEventListener('input', function() {
+    removeFloat();
+    var q = this.value.toLowerCase().trim();
+    if (q.length < 1) { hidden.value = ''; return; }
+
+    var matches = window.PRODUCT_LIST.filter(function(p) {
+      return p.sku.toLowerCase().includes(q) || p.name.toLowerCase().includes(q);
+    }).slice(0, 50);
+    if (matches.length === 0) return;
+
+    var rect = this.getBoundingClientRect();
+    var div = document.createElement('div');
+    div.id = 'search-float-' + row;
+    div.style.cssText = 'position:fixed;top:' + (rect.bottom + 4) + 'px;left:' + rect.left + 'px;width:' + rect.width + 'px;z-index:9999;background:white;border:1px solid var(--gray-200);border-radius:6px;box-shadow:var(--shadow-md);max-height:220px;overflow-y:auto';
+    div.innerHTML = matches.map(function(p) {
+      return '<div class="search-res-item" onclick="selectProd(' + row + ',' + p.id + ',\'' + p.sku.replace(/'/g, '') + '\',\'' + p.name.replace(/'/g, '') + '\')">'
+        + '<span style="font-family:var(--mono);font-size:11px;color:var(--gray-500)">' + p.sku + '</span> '
+        + p.name + '</div>';
+    }).join('');
+    document.body.appendChild(div);
+  });
+
+  input.addEventListener('blur', function() { setTimeout(removeFloat, 220); });
+  input.addEventListener('focus', function() { if (this.value.trim().length >= 1) this.dispatchEvent(new Event('input')); });
+}
+
+function selectProd(row, id, sku, name) {
+  var input = document.querySelector('.product-search[data-row="' + row + '"]');
+  var hidden = document.querySelector('input[name="product_' + row + '"]');
+  hidden.value = id;
+  input.value = sku + ' – ' + name;
+  var el = document.getElementById('search-float-' + row);
+  if (el) el.remove();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.product-search').forEach(initProductSearch);
+});
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'receiving_list' %}">Receiving</a> › <span class="current">{{ shipment.invoice_ref|default:shipment.pk }}</span></div>
+    <div class="page-title">Receiving Module</div>
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div class="section-card">
+    <div style="padding:14px 16px;background:var(--gray-50);border-bottom:1px solid var(--gray-200)">
+      <div style="display:flex;gap:32px">
+        <div><div class="stat-label">Supplier</div><div style="font-weight:600">{{ shipment.supplier|default:"—" }}</div></div>
+        <div><div class="stat-label">Invoice Ref</div><div style="font-weight:600">{{ shipment.invoice_ref|default:"—" }}</div></div>
+        <div><div class="stat-label">PO Reference</div><div style="font-weight:600">{{ shipment.po_reference|default:"—" }}</div></div>
+        <div><div class="stat-label">Receive Date</div><div style="font-weight:600">{{ shipment.receive_date }}</div></div>
+        <div><div class="stat-label">Total Units</div><div style="font-weight:600">{{ shipment.total_units }}</div></div>
+        <div><div class="stat-label">Total Value</div><div style="font-weight:600">{{ site_settings.currency_symbol }}{{ shipment.total_value|floatformat:2 }}</div></div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Product</th><th>Batch #</th><th>Expiry</th><th>Qty</th><th>Unit Cost</th><th>Line Total</th><th>Condition</th></tr></thead>
+        <tbody>
+          {% for item in shipment.items.all %}
+          <tr>
+            <td>{{ item.product|default:"—" }}</td>
+            <td>{{ item.batch_number|default:"—" }}</td>
+            <td>{{ item.expiry_date|default:"N/A" }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ item.unit_cost|floatformat:2 }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ item.line_total|floatformat:2 }}</td>
+            <td><span class="badge {% if item.condition == 'pristine' %}badge-green{% elif item.condition == 'damaged' %}badge-red{% else %}badge-blue{% endif %}">{{ item.condition|capfirst }}</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400)">No items added</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

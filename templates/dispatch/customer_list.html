@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Customers</div></div>
+  <div class="page-actions">
+    {% if perms.core.shipping_create %}
+    <a href="{% url 'customer_new' %}" class="btn btn-primary">+ New Customer</a>
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Customer ID</th><th>Name</th><th>Zone</th><th>Shipping Method</th><th>Credit Status</th><th>Phone</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for c in customers %}
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px">{{ c.customer_id }}</td>
+            <td><a href="{% url 'customer_detail' c.pk %}" class="link">{{ c.name }}</a></td>
+            <td>{{ c.zone|default:"—" }}</td>
+            <td>{{ c.shipping_method|default:"—" }}</td>
+            <td>
+              {% if c.credit_status == 'ok' %}<span class="badge badge-green">OK</span>
+              {% elif c.credit_status == 'hold' %}<span class="badge badge-orange">HOLD</span>
+              {% else %}<span class="badge badge-gray">{{ c.credit_status|upper }}</span>{% endif %}
+            </td>
+            <td>{{ c.phone|default:"—" }}</td>
+            <td>
+              <a href="{% url 'customer_edit' c.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">No customers yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

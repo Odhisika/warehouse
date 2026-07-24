@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">Inventory › <span class="current">Management</span></div>
+    <div class="page-title">Inventory Management</div>
+  </div>
+  <div class="page-actions">
+    {% if perms.core.inventory_export %}
+    <a href="{% url 'inventory_export' %}?format=xlsx" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Excel
+    </a>
+    <a href="{% url 'inventory_export' %}?format=pdf" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      PDF
+    </a>
+    {% endif %}
+    {% if perms.core.inventory_create %}
+    <a href="{% url 'product_add' %}" class="btn btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Add New Product
+    </a>
+    {% endif %}
+    {% if perms.core.shipping_create %}
+    <a href="{% url 'transfers_new' %}" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/><polyline points="17 12 12 7 7 12"/></svg>
+      Transfer Stock
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- FILTERS -->
+<form method="get" class="filter-row">
+  <div class="search-bar" style="flex:1;max-width:420px">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" name="q" value="{{ search }}" placeholder="Search by SKU, Name…">
+  </div>
+  <select name="category" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Categories</option>
+    {% for c in categories %}<option value="{{ c.pk }}" {% if selected_category == c.pk|stringformat:"s" %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+  </select>
+  <select name="stock_level" class="filter-select" onchange="this.form.submit()">
+    <option value="">Stock Level</option>
+    <option value="in_stock"     {% if selected_stock_level == 'in_stock' %}selected{% endif %}>In Stock</option>
+    <option value="low_stock"    {% if selected_stock_level == 'low_stock' %}selected{% endif %}>Low Stock</option>
+    <option value="out_of_stock" {% if selected_stock_level == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+  </select>
+  <button type="submit" class="btn btn-primary btn-sm">Search</button>
+  {% if search or selected_category or selected_stock_level %}
+  <a href="{% url 'inventory_list' %}" class="btn btn-secondary btn-sm">Clear</a>
+  {% endif %}
+</form>
+
+<!-- TABLE -->
+<div style="padding:0 24px 24px">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" class="checkbox" id="select-all"></th>
+            <th>Product Name</th><th>SKU</th><th>Category</th><th>Batch</th>
+            <th>Expiry</th><th style="text-align:right">Stock Qty</th><th style="text-align:right">Price</th><th>Sourced From</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+          <tr>
+            <td><input type="checkbox" class="checkbox row-check"></td>
+            <td><strong>{{ product.name }}</strong></td>
+            <td style="font-family:var(--mono);font-size:12px">{{ product.sku }}</td>
+            <td>{{ product.category|default:"—" }}</td>
+            <td>{{ product.batch_number|default:"—" }}</td>
+            <td>{{ product.expiry_date|default:"N/A" }}</td>
+            <td style="text-align:right;{% if product.stock_qty == 0 %}color:var(--red);font-weight:700{% endif %}">{{ product.stock_qty }}</td>
+            <td style="text-align:right">{{ site_settings.currency_symbol }}{{ product.unit_cost|floatformat:2 }}</td>
+            <td>{% if product.sourced_from_branch %}<span class="badge badge-blue">{{ product.sourced_from_branch }}</span>{% else %}—{% endif %}</td>
+            <td>
+              {% if product.status == 'in_stock' %}<span class="badge badge-green">In Stock</span>
+              {% elif product.status == 'low_stock' %}<span class="badge badge-yellow">Low Stock</span>
+              {% else %}<span class="badge badge-red">Out of Stock</span>{% endif %}
+            </td>
+            <td>
+              <div style="display:flex;gap:6px">
+                {% if perms.core.inventory_view %}
+                <a href="{% url 'product_detail' product.pk %}" class="btn btn-secondary btn-sm">View</a>
+                {% endif %}
+                {% if perms.core.inventory_edit %}
+                <a href="{% url 'product_edit' product.pk %}" class="btn btn-secondary btn-sm">Edit</a>
+                {% endif %}
+                {% if perms.core.shipping_create %}
+                <a href="{% url 'transfers_new' %}" class="btn btn-secondary btn-sm" title="Transfer stock to another branch">↔ Transfer</a>
+                {% endif %}
+                {% if perms.core.inventory_delete %}
+                <form method="post" action="{% url 'product_delete' product.pk %}" style="display:inline">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Remove this product?')">Del</button>
+                </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="11" style="text-align:center;padding:32px;color:var(--gray-400)">No products found</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <!-- PAGINATION -->
+    {% if products.has_other_pages %}
+    <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--gray-50);border-top:1px solid var(--gray-200)">
+      <span style="font-size:12.5px;color:var(--gray-500)">
+        Showing {{ products.start_index }}–{{ products.end_index }} of {{ products.paginator.count }} products
+      </span>
+      <div class="pagination">
+        {% if products.has_previous %}
+        <a href="?page={{ products.previous_page_number }}&q={{ search }}" class="page-btn">‹</a>
+        {% endif %}
+        {% for p in products.paginator.page_range %}
+        <a href="?page={{ p }}&q={{ search }}" class="page-btn {% if p == products.number %}active{% endif %}">{{ p }}</a>
+        {% endfor %}
+        {% if products.has_next %}
+        <a href="?page={{ products.next_page_number }}&q={{ search }}" class="page-btn">›</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

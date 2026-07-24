@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">{{ page_title }}</div></div>
+  <div class="page-actions">
+    {% if perms.core.inventory_export %}
+    <a href="{% url 'returns_export' %}?format=xlsx" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Excel
+    </a>
+    <a href="{% url 'returns_export' %}?format=pdf" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      PDF
+    </a>
+    {% endif %}
+    {% if perms.core.inventory_create %}
+    <a href="{% url 'returns_new' %}" class="btn btn-primary">+ New Entry</a>
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Return #</th>
+          <th>Reason</th>
+          <th>Type</th>
+          <th>Disposition</th>
+          <th>Items</th>
+          <th>Return Date</th>
+          <th>Completed</th>
+          <th>Notes</th>
+        </tr></thead>
+        <tbody>
+          {% for r in returns %}
+          <tr>
+            <td>{{ r.pk }}</td>
+            <td>{{ r.get_reason_display }}</td>
+            <td>{{ r.get_return_type_display }}</td>
+            <td>{{ r.get_disposition_display }}</td>
+            <td>{{ r.items.count }}</td>
+            <td>{{ r.return_date }}</td>
+            <td>{% if r.is_complete %}<span class="badge badge-green">Yes</span>{% else %}<span class="badge badge-yellow">No</span>{% endif %}</td>
+            <td>{{ r.notes|truncatewords:8|default:"—" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">No records yet. <a href="{% url 'returns_new' %}" class="link">Create one</a></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

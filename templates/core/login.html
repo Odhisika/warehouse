@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login – {{ site_settings.company_name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/nexus.css' %}">
+</head>
+<body style="overflow:auto">
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      {% if site_settings.logo %}
+      <img src="{{ site_settings.logo.url }}" alt="Logo" style="width:40px;height:40px;border-radius:8px;object-fit:cover">
+      {% else %}
+      <div class="brand-icon" style="width:40px;height:40px;font-size:20px">🏢</div>
+      {% endif %}
+      <div>
+        <div style="font-weight:700;font-size:16px;color:var(--blue)">{{ site_settings.company_name }}</div>
+        <div style="font-size:11px;color:var(--gray-400)">Global Ops V2.4.1</div>
+      </div>
+    </div>
+    <div class="login-title">Welcome back</div>
+    <div class="login-sub">Sign in to your warehouse account</div>
+
+    {% if messages %}
+      {% for msg in messages %}
+      <div style="background:var(--red-light);color:var(--red);border:1px solid #fecaca;border-radius:6px;padding:10px 12px;font-size:13px;margin-bottom:16px">
+        {{ msg }}
+      </div>
+      {% endfor %}
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-control" type="text" name="username" placeholder="Enter username" required autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <div class="pw-wrap">
+          <input class="form-control" type="password" name="password" placeholder="Enter password" required id="pw-login">
+          <button type="button" class="pw-toggle" onclick="togglePassword('pw-login', this)" tabindex="-1" aria-label="Toggle password visibility">
+            <svg class="eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-closed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+          </button>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;margin-top:4px">
+        Sign In
+      </button>
+    </form>
+  </div>
+</div>
+<script>
+function togglePassword(inputId, btn) {
+  var input = document.getElementById(inputId);
+  if (!input) return;
+  var isPassword = input.type === 'password';
+  input.type = isPassword ? 'text' : 'password';
+  var open = btn.querySelector('.eye-open');
+  var closed = btn.querySelector('.eye-closed');
+  if (open && closed) {
+    open.style.display = isPassword ? 'none' : '';
+    closed.style.display = isPassword ? '' : 'none';
+  }
+}
+</script>
+</body>
+</html>

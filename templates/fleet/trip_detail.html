@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="breadcrumb">Fleet / Trips / <span class="current">{{ trip.trip_number }}</span></div>
+    <strong>{{ trip.trip_number }}</strong>
+    {% if trip.status == 'completed' %}<span class="badge badge-green">COMPLETED</span>
+    {% elif trip.status == 'in_transit' %}<span class="badge badge-blue">IN TRANSIT</span>
+    {% elif trip.status == 'planned' %}<span class="badge badge-yellow">PLANNED</span>
+    {% else %}<span class="badge badge-gray">{{ trip.get_status_display }}</span>{% endif %}
+  </div>
+  <div style="display:flex;gap:8px">
+    {% if perms.core.shipping_edit %}
+      {% if trip.status == 'planned' %}
+      <form method="post" action="{% url 'trip_depart' trip.pk %}" style="display:inline" id="depart-form">
+        {% csrf_token %}
+        <input type="hidden" name="odometer_start" id="odometer-start" value="0">
+      </form>
+      <button type="submit" form="depart-form" class="btn btn-primary" onclick="var i=prompt('Start odometer reading (km):','0');if(i!==null){document.getElementById('odometer-start').value=i;return true;}return false;">Depart</button>
+      {% elif trip.status == 'in_transit' %}
+      <form method="post" action="{% url 'trip_arrive' trip.pk %}" style="display:inline" id="arrive-form">
+        {% csrf_token %}
+        <input type="hidden" name="odometer_end" id="odometer-end" value="0">
+        <input type="hidden" name="fuel_cost" id="fuel-cost" value="0">
+        <input type="hidden" name="toll_cost" id="toll-cost" value="0">
+        <input type="hidden" name="driver_allowance" id="driver-allowance" value="0">
+      </form>
+      <button type="submit" form="arrive-form" class="btn btn-primary" onclick="var e=prompt('End odometer reading (km):','0');var f=prompt('Fuel cost (₵):','0');var t=prompt('Toll cost (₵):','0');var d=prompt('Driver allowance (₵):','0');if(e!==null){document.getElementById('odometer-end').value=e;document.getElementById('fuel-cost').value=f||0;document.getElementById('toll-cost').value=t||0;document.getElementById('driver-allowance').value=d||0;return true;}return false;">Mark Arrived</button>
+      {% endif %}
+      {% if trip.status != 'completed' and trip.status != 'cancelled' %}
+      <form method="post" action="{% url 'trip_cancel' trip.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" onclick="return confirm('Cancel this trip?')">Cancel</button>
+      </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Trip Details</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-700)">
+        <div style="display:flex;justify-content:space-between"><span>Vehicle</span><strong><a href="{% url 'vehicle_detail' trip.vehicle.pk %}" class="link">{{ trip.vehicle.plate_number }}</a></strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Driver</span><strong><a href="{% url 'driver_detail' trip.driver.pk %}" class="link">{{ trip.driver.full_name }}</a></strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Route</span><strong>{{ trip.route|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Linked To</span><strong>{% if trip.dispatch_order %}<a href="{% url 'dispatch_detail' trip.dispatch_order.pk %}" class="link">{{ trip.dispatch_order.dispatch_id }}</a>{% elif trip.transfer %}<a href="{% url 'transfers_detail' trip.transfer.pk %}" class="link">{{ trip.transfer.reference }}</a>{% else %}—{% endif %}</strong></div>
+      </div>
+    </div>
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Timing &amp; Odometer</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-700)">
+        <div style="display:flex;justify-content:space-between"><span>Departure</span><strong>{{ trip.departure_time|date:"d/m/Y H:i"|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Est. Arrival</span><strong>{{ trip.estimated_arrival|date:"d/m/Y H:i"|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Actual Arrival</span><strong>{{ trip.actual_arrival|date:"d/m/Y H:i"|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Odometer Start</span><strong>{{ trip.odometer_start }} km</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Odometer End</span><strong>{{ trip.odometer_end|default:"—" }}{% if trip.odometer_end %} km{% endif %}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Distance</span><strong>{{ trip.distance_km }} km</strong></div>
+      </div>
+    </div>
+  </div>
+  <div class="section-card" style="padding:16px;margin-top:16px">
+    <div class="section-label" style="margin-bottom:12px">Trip Costs</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;font-size:13px;color:var(--gray-700)">
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:11px;text-transform:uppercase;color:var(--gray-500)">Fuel</span>
+        <strong>{{ site_settings.currency_symbol }}{{ trip.fuel_cost|floatformat:2 }}</strong>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:11px;text-transform:uppercase;color:var(--gray-500)">Tolls</span>
+        <strong>{{ site_settings.currency_symbol }}{{ trip.toll_cost|floatformat:2 }}</strong>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:11px;text-transform:uppercase;color:var(--gray-500)">Driver Allowance</span>
+        <strong>{{ site_settings.currency_symbol }}{{ trip.driver_allowance|floatformat:2 }}</strong>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:11px;text-transform:uppercase;color:var(--gray-500)">Total Cost</span>
+        <strong style="font-size:16px;color:var(--blue)">{{ site_settings.currency_symbol }}{{ trip.total_trip_cost|floatformat:2 }}</strong>
+      </div>
+    </div>
+  </div>
+
+  {% if trip.notes %}
+  <div class="section-card" style="padding:16px;margin-top:16px">
+    <div class="section-label" style="margin-bottom:8px">Notes</div>
+    <div style="font-size:13px;color:var(--gray-700)">{{ trip.notes|linebreaksbr }}</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

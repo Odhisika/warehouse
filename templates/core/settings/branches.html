@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stat-row">
+  <div class="stat-card"><div class="stat-label">Total Branches</div><div class="stat-value blue">{{ stats.total }}</div></div>
+  <div class="stat-card"><div class="stat-label">Active</div><div class="stat-value">{{ stats.active }}</div></div>
+  <div class="stat-card"><div class="stat-label">Inactive</div><div class="stat-value">{{ stats.inactive }}</div></div>
+  <div class="stat-card"><div class="stat-label">Avg. Capacity</div><div class="stat-value">{{ stats.avg_capacity }}%</div></div>
+</div>
+
+<div style="padding:12px 24px;display:flex;gap:8px;align-items:center">
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <button class="btn btn-primary btn-sm" onclick="openModal('new-branch-modal')">+ New Branch</button>
+  </div>
+</div>
+
+<div style="padding:0 24px">
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save_all">
+      <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Branch Name</th><th>Code</th><th>Location</th><th>Manager</th><th>Capacity</th><th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for branch in branches %}
+          <tr>
+            <td>
+              <input type="hidden" name="pk_{{ branch.pk }}" value="{{ branch.pk }}">
+              <input class="form-control" type="text" name="name_{{ branch.pk }}" value="{{ branch.name }}" required style="min-width:140px">
+            </td>
+            <td><span style="font-family:var(--mono);font-size:12px;color:var(--gray-500)">{{ branch.code }}</span></td>
+            <td><input class="form-control" type="text" name="location_{{ branch.pk }}" value="{{ branch.location|default:'' }}" style="min-width:120px"></td>
+            <td><input class="form-control" type="text" name="manager_{{ branch.pk }}" value="{{ branch.manager|default:'' }}" style="min-width:120px"></td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px">
+                <input class="form-control" type="number" name="capacity_{{ branch.pk }}" value="{{ branch.capacity_percent }}" min="0" max="100" style="width:70px">
+                <span>%</span>
+              </div>
+            </td>
+            <td>
+              <select class="form-control" name="status_{{ branch.pk }}" style="width:110px">
+                <option value="active" {% if branch.status == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if branch.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                <option value="limited" {% if branch.status == 'limited' %}selected{% endif %}>Limited</option>
+              </select>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">
+              No branches configured yet.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <div style="padding:12px 16px;display:flex;justify-content:flex-end;border-top:1px solid var(--gray-200)">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- New Branch Modal -->
+<div class="modal-overlay" id="new-branch-modal">
+  <div class="modal">
+    <div class="modal-title">Add New Branch</div>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_branch">
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Branch Name *</label><input class="form-control" type="text" name="name" required></div>
+        <div class="form-group"><label class="form-label">Branch Code *</label><input class="form-control" type="text" name="code" placeholder="e.g. BR01" required style="text-transform:uppercase"></div>
+        <div class="form-group"><label class="form-label">Location / Region</label><input class="form-control" type="text" name="location"></div>
+        <div class="form-group"><label class="form-label">Manager</label><input class="form-control" type="text" name="manager"></div>
+        <div class="form-group"><label class="form-label">Capacity (%)</label><input class="form-control" type="number" name="capacity_percent" value="0" min="0" max="100"></div>
+        <div class="form-group"><label class="form-label">Status</label>
+          <select class="form-control" name="status">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+            <option value="limited">Limited</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('new-branch-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Create Branch</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

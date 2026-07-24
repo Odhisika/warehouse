@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div class="breadcrumb">Fleet / Trips / <span class="current">New Trip</span></div>
+</div>
+<form method="post" style="padding:16px 24px;max-width:720px">
+  {% csrf_token %}
+  <div class="card" style="padding:16px">
+    <div class="card-header" style="padding-bottom:14px"><span class="card-title">New Trip</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Vehicle *</label>
+        <select class="form-control" name="vehicle" required>
+          <option value="">Select vehicle…</option>
+          {% for v in vehicles %}<option value="{{ v.pk }}">{{ v.plate_number }} — {{ v.get_vehicle_type_display }} ({{ v.capacity_weight_kg|floatformat:0 }} kg)</option>{% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Driver *</label>
+        <select class="form-control" name="driver" required>
+          <option value="">Select driver…</option>
+          {% for d in drivers %}<option value="{{ d.pk }}">{{ d.full_name }} — License: {{ d.license_number }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Linked Dispatch Order</label>
+      <select class="form-control" name="dispatch_order">
+        <option value="">None</option>
+        {% for o in dispatch_orders %}<option value="{{ o.pk }}">{{ o.dispatch_id }} — {{ o.destination }} ({{ o.get_status_display }})</option>{% endfor %}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Route</label>
+        <input class="form-control" type="text" name="route" placeholder="e.g. Accra → Kumasi">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estimated Arrival</label>
+        <input class="form-control" type="datetime-local" name="estimated_arrival">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Notes</label>
+      <textarea class="form-control" name="notes" rows="3"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <a href="{% url 'trip_list' %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">Create Trip</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

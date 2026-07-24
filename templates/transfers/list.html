@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">{{ page_title }}</div></div>
+  <div class="page-actions">
+    {% if perms.core.shipping_export %}
+    <a href="{% url 'transfers_export' %}?format=xlsx" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Excel
+    </a>
+    <a href="{% url 'transfers_export' %}?format=pdf" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      PDF
+    </a>
+    {% endif %}
+    {% if perms.core.shipping_create %}
+    <a href="{% url 'transfers_new' %}" class="btn btn-primary">+ New Transfer</a>
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Reference</th>
+            <th>From</th>
+            <th>To</th>
+            <th>Items</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transfers %}
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px;font-weight:600">{{ t.reference }}</td>
+            <td>{{ t.from_branch_code }}</td>
+            <td>{{ t.to_branch_code }}</td>
+            <td>{{ t.items.count }}</td>
+            <td><span class="badge badge-{{ t.status }}">{{ t.get_status_display }}</span></td>
+            <td style="font-size:12px;color:var(--gray-500)">{{ t.created_at|date:"d M Y" }}</td>
+            <td><a href="{% url 'transfers_detail' t.pk %}" class="link">View</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">No records yet. <a href="{% url 'transfers_new' %}" class="link">Create one</a></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.badge { display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600 }
+.badge-draft { background:#F3F4F6;color:#6B7280 }
+.badge-pending { background:#FEF3C7;color:#92400E }
+.badge-in_transit { background:#DBEAFE;color:#1E40AF }
+.badge-complete { background:#D1FAE5;color:#065F46 }
+.badge-received { background:#D1FAE5;color:#065F46 }
+.badge-cancelled { background:#FEE2E2;color:#991B1B }
+</style>
+{% endblock %}

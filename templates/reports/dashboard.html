@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block content %}
+<!-- Filters -->
+<div style="background:white;border-bottom:1px solid var(--gray-200);padding:12px 24px;display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">
+  <div>
+    <div class="form-label" style="font-size:11px">Date Range</div>
+    <select class="filter-select"><option>Last 30 Days</option><option>Last 7 Days</option><option>This Month</option><option>This Year</option></select>
+  </div>
+  <div>
+    <div class="form-label" style="font-size:11px">Category</div>
+    <select class="filter-select"><option>All Categories</option></select>
+  </div>
+  <div>
+    <div class="form-label" style="font-size:11px">Status</div>
+    <select class="filter-select"><option>In Stock</option><option>All</option><option>Out of Stock</option></select>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px">
+    <button class="btn btn-secondary btn-sm">Clear</button>
+    <button class="btn btn-primary btn-sm">Apply Filters</button>
+  </div>
+</div>
+
+<!-- KPI Row -->
+<div class="stat-row">
+  <div class="stat-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div><div class="stat-label">Total Stock Value</div><div class="stat-value">{{ site_settings.currency_symbol }}{{ total_stock_value|floatformat:0 }}</div></div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    </div>
+    <div class="stat-progress" style="margin-top:8px"><div class="stat-progress-fill" style="width:60%;background:var(--green)"></div></div>
+    <div class="stat-sub green" style="margin-top:3px">+2.4%</div>
+  </div>
+  <div class="stat-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="stat-label">Out of Stock</div><div class="stat-value red">{{ out_of_stock }} SKU</div></div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/></svg>
+    </div>
+    <div class="stat-progress" style="margin-top:8px"><div class="stat-progress-fill" style="width:20%;background:var(--red)"></div></div>
+    <div class="stat-sub red" style="margin-top:3px">Needs reorder</div>
+  </div>
+  <div class="stat-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="stat-label">Low Stock Items</div><div class="stat-value orange">{{ low_stock_items.count }}</div></div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+    </div>
+    <div class="stat-progress" style="margin-top:8px"><div class="stat-progress-fill" style="width:40%;background:var(--orange)"></div></div>
+    <div class="stat-sub orange" style="margin-top:3px">Monitor closely</div>
+  </div>
+  <div class="stat-card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div><div class="stat-label">Damaged Items</div><div class="stat-value">{{ damaged }}</div></div>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/></svg>
+    </div>
+    <div class="stat-progress" style="margin-top:8px"><div class="stat-progress-fill" style="width:10%;background:#92400E"></div></div>
+    <div class="stat-sub" style="margin-top:3px;color:var(--gray-500)">Target &lt; 0.05%</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Weekly Volatility</div>
+    <div style="display:flex;align-items:flex-end;gap:3px;height:40px;margin-top:4px">
+      {% for h in "30,50,40,65,100"|split:"," %}
+      <div style="flex:1;background:{% if forloop.last %}var(--blue){% else %}var(--gray-200){% endif %};border-radius:2px 2px 0 0;height:{{ h }}%"></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Inventory Ledger -->
+<div style="padding:16px 24px">
+  <div class="card">
+    <div class="card-header" style="padding-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="card-title">Inventory Ledger</span>
+        <span style="background:var(--green-light);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px">LIVE SYNC</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <a href="{% url 'reports_export' %}?format=pdf" class="btn btn-secondary btn-sm">Export as PDF</a>
+        <a href="{% url 'reports_export' %}?format=xlsx" class="btn btn-secondary btn-sm">Export as Excel</a>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()">Print Report</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+            <tr><th>SKU ID</th><th>Description</th><th>Category</th><th>On Hand</th><th>Reserved</th><th>Value</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {% for p in ledger %}
+          <tr>
+            <td><a class="link" href="{% url 'product_edit' p.pk %}">{{ p.sku }}</a></td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.category|default:"—" }}</td>
+            <td {% if p.stock_qty <= p.reorder_level %}style="color:var(--red);font-weight:700"{% endif %}>{{ p.stock_qty }}</td>
+            <td>{{ p.reserved_qty }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ p.total_value|floatformat:2 }}</td>
+            <td>
+              {% if p.status == 'in_stock' %}<span class="badge badge-green" style="font-size:11px">STABLE</span>
+              {% elif p.status == 'low_stock' %}<span class="badge badge-yellow" style="font-size:11px">LOW STCK</span>
+              {% else %}<span class="badge badge-red" style="font-size:11px">OUT STCK</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">No inventory data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:12px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--gray-50);border-top:1px solid var(--gray-200)">
+      <span style="font-size:12.5px;color:var(--gray-500)">Showing {{ ledger|length }} entries</span>
+    </div>
+  </div>
+</div>
+{% endblock %}

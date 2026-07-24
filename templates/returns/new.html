@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Return & Damaged Stock</div></div>
+</div>
+<form method="post" style="padding:20px 24px">
+  {% csrf_token %}
+  <!-- Step 1 -->
+  <div class="accordion open">
+    <div class="accordion-header">
+      <div class="accordion-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M12 5H9a4 4 0 0 0 0 8h8"/><path d="m15 8 3-3-3-3"/></svg>
+        Step 1: Return Logic
+      </div>
+      <svg class="accordion-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="accordion-body">
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Return Reason</label><select class="form-control" name="reason"><option value="customer_return">Customer Return</option><option value="damaged_transit">Damaged in Transit</option><option value="wrong_item">Wrong Item</option><option value="expired">Expired</option><option value="other">Other</option></select></div>
+        <div class="form-group"><label class="form-label">Return Type</label><select class="form-control" name="return_type"><option value="full">Full Return</option><option value="partial">Partial Return</option></select></div>
+        <div class="form-group"><label class="form-label">Return Date</label><input class="form-control" type="date" name="return_date" value="{{ today }}"></div>
+        <div class="form-group"><label class="form-label">Inspection Notes</label><input class="form-control" type="text" name="notes" placeholder="Add notes…"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Step 2 -->
+  <div class="accordion">
+    <div class="accordion-header">
+      <div class="accordion-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2"/></svg>
+        Step 2: Inventory Items
+      </div>
+      <svg class="accordion-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="accordion-body">
+      <div class="search-bar" style="margin-bottom:12px;max-width:400px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg><input type="text" placeholder="Search SKU…"></div>
+      <table><thead><tr><th>Product</th><th>Qty Returned</th><th>Condition</th></tr></thead>
+      <tbody>
+        {% for p in products %}
+        <tr><td>{{ p.name }}</td><td><input type="number" name="qty_{{ p.pk }}" value="0" min="0" class="form-control" style="width:80px"></td><td><select name="cond_{{ p.pk }}" class="form-control" style="width:120px"><option>Good</option><option>Damaged</option></select></td></tr>
+        {% endfor %}
+      </tbody></table>
+    </div>
+  </div>
+  <!-- Step 3 -->
+  <div class="accordion">
+    <div class="accordion-header">
+      <div class="accordion-title">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+        Step 3: Condition & Disposition
+      </div>
+      <svg class="accordion-caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="accordion-body">
+      <div class="grid-2">
+        <div class="form-group"><label class="form-label">Disposition Action</label><select class="form-control" name="disposition"><option value="restock">Restock</option><option value="quarantine">Quarantine</option><option value="dispose">Dispose</option><option value="return_supplier">Return to Supplier</option></select></div>
+      </div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+    <button type="button" class="btn btn-secondary">Scan Next Item</button>
+    <button type="submit" class="btn btn-primary">Complete Return</button>
+  </div>
+</form>
+{% endblock %}

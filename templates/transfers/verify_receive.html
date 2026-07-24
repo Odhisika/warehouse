@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="{% url 'transfers_list' %}">Transfers</a> ›
+      <a href="{% url 'transfers_detail' transfer.pk %}">{{ transfer.reference }}</a> ›
+      <span class="current">Verify Receipt</span>
+    </div>
+    <div class="page-title">Verify Receipt — {{ transfer.reference }}</div>
+  </div>
+</div>
+
+<form method="post" style="padding:16px 24px">
+  {% csrf_token %}
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Transfer Details</div>
+      <div class="info-row"><span>Waybill</span><span><strong>{{ waybill.waybill_number }}</strong></span></div>
+      <div class="info-row"><span>From Branch</span><span>{{ transfer.from_branch_code }}</span></div>
+      <div class="info-row"><span>To Branch</span><span>{{ transfer.to_branch_code }}</span></div>
+      <div class="info-row"><span>Dispatched At</span><span>{{ waybill.dispatched_at|date:"d M Y H:i" }}</span></div>
+    </div>
+    <div class="section-card" style="padding:16px;background:#F0FDF4;border:1px solid #BBF7D0">
+      <div class="section-label" style="margin-bottom:12px">Instructions</div>
+      <p style="font-size:13px;color:var(--gray-600);margin:0">
+        Verify each item against the physical goods received. Enter the quantity in good condition,
+        any damaged quantity, and notes if needed. Discrepancies will be flagged automatically.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="padding-bottom:10px">
+      <span class="card-title">Items to Verify</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Product</th>
+            <th>Qty Sent</th>
+            <th>Qty Received</th>
+            <th>Damaged</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in waybill.items.all %}
+          <tr>
+            <td style="font-family:var(--mono);font-size:11px">{{ item.product.sku|default:"—" }}</td>
+            <td>{{ item.product.name|default:"Deleted" }}</td>
+            <td><strong>{{ item.qty_sent }}</strong></td>
+            <td>
+              <input type="number" name="qty_received_{{ item.pk }}" value="{{ item.qty_sent }}"
+                     min="0" max="{{ item.qty_sent }}"
+                     style="width:80px;padding:6px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;text-align:center"
+                     oninput="checkDiscrepancy({{ item.pk }}, {{ item.qty_sent }})">
+            </td>
+            <td>
+              <input type="number" name="qty_damaged_{{ item.pk }}" value="0"
+                     min="0" max="{{ item.qty_sent }}"
+                     style="width:80px;padding:6px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:13px;text-align:center"
+                     oninput="checkDiscrepancy({{ item.pk }}, {{ item.qty_sent }})">
+            </td>
+            <td>
+              <input type="text" name="condition_notes_{{ item.pk }}" placeholder="Optional…"
+                     style="width:100%;padding:6px 8px;border:1px solid var(--gray-300);border-radius:6px;font-size:12px">
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">No items in this transfer</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+    <a href="{% url 'transfers_detail' transfer.pk %}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">Confirm Receipt</button>
+  </div>
+</form>
+
+{% block extra_js %}
+<script>
+function checkDiscrepancy(itemPk, qtySent) {
+  const row = document.querySelector(`input[name="qty_received_${itemPk}"]`).closest('tr');
+  const received = parseInt(document.querySelector(`input[name="qty_received_${itemPk}"]`).value) || 0;
+  const damaged = parseInt(document.querySelector(`input[name="qty_damaged_${itemPk}"]`).value) || 0;
+  const total = received + damaged;
+  if (total !== qtySent) {
+    row.style.background = '#FEF2F2';
+  } else {
+    row.style.background = '';
+  }
+}
+</script>
+{% endblock %}
+
+<style>
+.info-row { display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--gray-100) }
+.info-row span:first-child { color:var(--gray-500) }
+.info-row span:last-child { font-weight:500 }
+</style>
+{% endblock %}

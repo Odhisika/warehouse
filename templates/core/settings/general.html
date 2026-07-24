@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title">General Settings</div>
+    <p style="font-size:13px;color:var(--gray-500);margin-top:4px">Configure the global identity, localization, and system preferences.</p>
+  </div>
+</div>
+<form method="post" enctype="multipart/form-data" style="padding:16px 24px">
+  {% csrf_token %}
+  <!-- Organization Profile -->
+  <div style="background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;margin-bottom:16px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px">Organization Profile</div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Company Name</label>
+        <input class="form-control" type="text" name="company_name" value="{{ settings.company_name }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Business Logo</label>
+        <div style="display:flex;gap:12px;align-items:center">
+          {% if settings.logo %}
+          <img src="{{ settings.logo.url }}" alt="Logo" style="width:64px;height:64px;border-radius:8px;object-fit:cover">
+          {% else %}
+          <div style="width:64px;height:64px;border:2px dashed var(--gray-300);border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--gray-400);font-size:24px">🏢</div>
+          {% endif %}
+          <div>
+            <input type="file" name="logo" accept="image/png,image/jpeg" style="margin-bottom:6px;font-size:13px">
+            <div style="font-size:11px;color:var(--gray-400)">PNG, JPG up to 2MB. Recommended: 512×512px.</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Default Branch</label>
+        <select class="form-control" name="default_branch">
+          <option value="">-- None --</option>
+          {% for b in branches %}
+          <option value="{{ b.pk }}" {% if settings.default_branch_id == b.pk %}selected{% endif %}>{{ b.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Currency</label>
+        <select class="form-control" name="currency">
+          <option {% if settings.currency == 'USD – United States Dollar' %}selected{% endif %}>USD – United States Dollar</option>
+          <option {% if settings.currency == 'EUR – Euro' %}selected{% endif %}>EUR – Euro</option>
+          <option {% if settings.currency == 'GBP – British Pound' %}selected{% endif %}>GBP – British Pound</option>
+          <option {% if settings.currency == 'GHS – Ghanaian Cedi' %}selected{% endif %}>GHS – Ghanaian Cedi</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Localization -->
+  <div style="background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;margin-bottom:16px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px">Localization &amp; Language</div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Timezone</label>
+        <select class="form-control" name="timezone">
+          <option {% if settings.timezone == '(GMT-05:00) Eastern Time' %}selected{% endif %}>(GMT-05:00) Eastern Time</option>
+          <option {% if settings.timezone == '(GMT+00:00) UTC' %}selected{% endif %}>(GMT+00:00) UTC</option>
+          <option {% if settings.timezone == '(GMT+00:00) Africa/Accra' %}selected{% endif %}>(GMT+00:00) Africa/Accra</option>
+          <option {% if settings.timezone == '(GMT+01:00) Central European' %}selected{% endif %}>(GMT+01:00) Central European</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Language</label>
+        <select class="form-control" name="language">
+          <option {% if settings.language == 'English (United States)' %}selected{% endif %}>English (United States)</option>
+          <option {% if settings.language == 'English (UK)' %}selected{% endif %}>English (UK)</option>
+          <option {% if settings.language == 'French' %}selected{% endif %}>French</option>
+          <option {% if settings.language == 'Spanish' %}selected{% endif %}>Spanish</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date Format</label>
+        <select class="form-control" name="date_format">
+          <option {% if settings.date_format == 'MM/DD/YYYY' %}selected{% endif %}>MM/DD/YYYY</option>
+          <option {% if settings.date_format == 'DD/MM/YYYY' %}selected{% endif %}>DD/MM/YYYY</option>
+          <option {% if settings.date_format == 'YYYY-MM-DD' %}selected{% endif %}>YYYY-MM-DD</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Preferences -->
+  <div style="background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;margin-bottom:16px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:16px">System Preferences</div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:12px 0;border-bottom:1px solid var(--gray-100)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>
+        <div>
+          <div style="font-size:13.5px;font-weight:600">System Theme</div>
+          <div style="font-size:12px;color:var(--gray-500)">Switch between Light and Dark interface modes.</div>
+        </div>
+      </div>
+      <div style="display:flex;border:1px solid var(--gray-300);border-radius:6px;overflow:hidden">
+        <button type="button" class="theme-btn {% if settings.theme == 'light' %}active{% endif %}" data-value="light" style="padding:7px 18px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;{% if settings.theme == 'light' %}background:var(--gray-100);color:var(--gray-900){% else %}background:white;color:var(--gray-600){% endif %}">Light</button>
+        <button type="button" class="theme-btn {% if settings.theme == 'dark' %}active{% endif %}" data-value="dark" style="padding:7px 18px;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;{% if settings.theme == 'dark' %}background:var(--gray-100);color:var(--gray-900){% else %}background:white;color:var(--gray-600){% endif %}">Dark</button>
+      </div>
+      <input type="hidden" name="theme" id="theme-input" value="{{ settings.theme }}">
+    </div>
+  </div>
+
+  <div style="position:sticky;bottom:0;background:white;border-top:1px solid var(--gray-200);padding:12px 0;display:flex;justify-content:flex-end;gap:8px;margin:0 -24px;padding:12px 24px">
+    <button type="button" class="btn btn-secondary">Discard Changes</button>
+    <button type="submit" class="btn btn-primary">Save Changes</button>
+  </div>
+</form>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelectorAll('.theme-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.theme-btn').forEach(function(b) {
+      b.style.background = 'white';
+      b.style.color = 'var(--gray-600)';
+      b.classList.remove('active');
+    });
+    this.style.background = 'var(--gray-100)';
+    this.style.color = 'var(--gray-900)';
+    this.classList.add('active');
+    document.getElementById('theme-input').value = this.dataset.value;
+  });
+});
+</script>
+{% endblock %}

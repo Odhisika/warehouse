@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Dispatch</div></div>
+  <div class="page-actions">
+    {% if perms.core.shipping_export %}
+    <a href="{% url 'dispatch_export' %}?format=xlsx" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Excel
+    </a>
+    <a href="{% url 'dispatch_export' %}?format=pdf" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      PDF
+    </a>
+    {% endif %}
+    {% if perms.core.shipping_view %}
+    <a href="{% url 'customer_list' %}" class="btn btn-secondary">Customers</a>
+    {% endif %}
+    {% if perms.core.shipping_create %}
+    <a href="{% url 'dispatch_new' %}" class="btn btn-primary">+ New Dispatch</a>
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dispatch ID</th><th>Customer</th><th>Destination</th><th>Carrier</th><th>Grand Total</th><th>Status</th><th>Date</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for order in orders %}
+          <tr>
+            <td><a href="{% url 'dispatch_detail' order.pk %}" class="link">{{ order.dispatch_id }}</a></td>
+            <td>{{ order.customer|default:"—" }}</td>
+            <td>{{ order.destination|default:"—" }}</td>
+            <td>{{ order.get_carrier_display|default:"—" }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ order.grand_total|floatformat:2 }}</td>
+            <td>
+              {% if order.status == 'shipped' %}<span class="badge badge-green">SHIPPED</span>
+              {% elif order.status == 'processing' %}<span class="badge badge-blue">PROCESSING</span>
+              {% elif order.status == 'pending' %}<span class="badge badge-yellow">PENDING</span>
+              {% elif order.status == 'delivered' %}<span class="badge badge-green">DELIVERED</span>
+              {% else %}<span class="badge badge-gray">{{ order.get_status_display }}</span>{% endif %}
+            </td>
+            <td>{{ order.created_at|date:"M d, Y" }}</td>
+            <td><a href="{% url 'dispatch_detail' order.pk %}" class="btn btn-secondary btn-sm">View</a></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">No dispatches yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

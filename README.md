@@ -1,0 +1,6 @@
+- Currency: ₵ (GHS – Ghanaian Cedi) on every page
+- Timezone: Africa/Accra
+- Date format: DD/MM/YYYY
+- Login: admin / admin123 (superuser) or warehouse1 / pass123 (staff)
+- Branch: ACCRA (Accra Main Branch) with 11 products, 2 suppliers, 4 dispatch orders, 3 inbound shipments, stock transfers, and returns
+- Django check: 0 issues

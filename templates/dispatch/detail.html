@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+<div
+  style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200)">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="breadcrumb">Inventory / Dispatch / <span class="current">{{ order.dispatch_id }}</span></div>
+    <strong>{{ order.dispatch_id }}</strong>
+  </div>
+  <div style="display:flex;gap:8px">
+    {% if perms.core.shipping_edit %}
+      {% if order.status == 'pending' %}
+      <form method="post" action="{% url 'dispatch_authorize' order.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary">Authorize Dispatch</button>
+      </form>
+      {% elif order.status == 'processing' %}
+      <a href="{% url 'dispatch_ship' order.pk %}" class="btn btn-primary">Ship Dispatch</a>
+      {% elif order.status == 'shipped' %}
+      <form method="post" action="{% url 'dispatch_deliver' order.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">Record Delivery (POD)</button>
+      </form>
+      {% elif order.status == 'delivered' and order.pod %}
+      <a href="{% url 'pod_detail' order.pk %}" class="btn btn-secondary">View POD</a>
+      {% endif %}
+      {% if order.status != 'delivered' and order.status != 'cancelled' %}
+      <form method="post" action="{% url 'dispatch_cancel' order.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" onclick="return confirm('Cancel this dispatch?{% if order.status == 'processing' %} Stock will be restored.{% endif %}')">Cancel</button>
+      </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Customer Details</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--gray-700)">
+        <div>Customer: <strong>{{ order.customer|default:"—" }}</strong></div>
+        <div>Destination: <strong>{{ order.destination|default:"—" }}</strong></div>
+        <div>Carrier: <strong>{{ order.get_carrier_display|default:"—" }}</strong></div>
+        <div>Status:
+          {% if order.status == 'shipped' %}<span class="badge badge-green">SHIPPED</span>
+          {% elif order.status == 'delivered' %}<span class="badge badge-green">DELIVERED</span>
+          {% elif order.status == 'processing' %}<span class="badge badge-blue">PROCESSING</span>
+          {% elif order.status == 'pending' %}<span class="badge badge-yellow">PENDING</span>
+          {% elif order.status == 'cancelled' %}<span class="badge badge-gray">CANCELLED</span>
+          {% else %}<span class="badge badge-gray">{{ order.get_status_display }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Order Totals</div>
+      <div class="total-row"><span>Subtotal</span><span>{{ site_settings.currency_symbol }}
+          {{ order.subtotal|floatformat:2 }}</span></div>
+      <div class="total-row"><span>Handling</span><span>{{ site_settings.currency_symbol }}
+          {{ order.handling_fee|floatformat:2 }}</span></div>
+      <div class="total-row"><span>Tax ({{ order.tax_rate }}%)</span><span>
+          {{ site_settings.currency_symbol }} {{ order.tax_amount|floatformat:2 }}</span></div>
+      <div class="total-row grand"><span>Grand Total</span><span>
+          {{ site_settings.currency_symbol }}{{order.grand_total|floatformat:2 }}</span></div>
+    </div>
+  </div>
+
+  {% if order.assigned_vehicle or order.assigned_driver %}
+  <div class="section-card" style="padding:16px;margin-top:16px">
+    <div class="section-label" style="margin-bottom:12px">Vehicle &amp; Driver</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:var(--gray-700)">
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div>Vehicle: <strong>{% if order.assigned_vehicle %}<a href="{% url 'vehicle_detail' order.assigned_vehicle.pk %}" class="link">{{ order.assigned_vehicle.plate_number }}</a> ({{ order.assigned_vehicle.get_vehicle_type_display }}){% else %}—{% endif %}</strong></div>
+        <div>Capacity: <strong>{% if order.assigned_vehicle %}{{ order.assigned_vehicle.capacity_weight_kg|floatformat:0 }} kg{% else %}—{% endif %}</strong></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div>Driver: <strong>{% if order.assigned_driver %}<a href="{% url 'driver_detail' order.assigned_driver.pk %}" class="link">{{ order.assigned_driver.full_name }}</a>{% else %}—{% endif %}</strong></div>
+        <div>License: <strong>{% if order.assigned_driver %}{{ order.assigned_driver.license_number }}{% else %}—{% endif %}</strong></div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Manifest Items</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Description</th>
+            <th>Batch</th>
+            <th>Qty</th>
+            <th>Unit Price</th>
+            <th>Line Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in order.items.all %}
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px">{{ item.product.sku|default:"—" }}</td>
+            <td>{{ item.product.name|default:"—" }}</td>
+            <td>{{ item.batch_number|default:"—" }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ site_settings.currency_symbol }} {{ item.unit_price|floatformat:2 }}</td>
+            <td><strong>{{ site_settings.currency_symbol }} {{ item.line_total|floatformat:2 }}</strong></td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">No items</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% if order.status == 'delivered' and order.pod %}
+  <div class="section-card" style="padding:16px;margin-top:16px;border-left:3px solid var(--green)">
+    <div class="section-label" style="margin-bottom:8px">Proof of Delivery</div>
+    <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--gray-700)">
+      <div>Recipient: <strong>{{ order.pod.recipient_name }}</strong></div>
+      <div>Delivered At: <strong>{{ order.pod.delivery_timestamp|date:"d/m/Y H:i" }}</strong></div>
+      <div>Delivered By: <strong>{{ order.pod.delivered_by_id|default:"—" }}</strong></div>
+      {% if order.pod.has_damage %}
+      <div style="color:var(--red)">⚠ Damage reported — <a href="{% url 'pod_detail' order.pk %}" class="link">View details</a></div>
+      {% endif %}
+    </div>
+    <a href="{% url 'pod_detail' order.pk %}" class="btn btn-secondary btn-sm" style="margin-top:10px">View Full POD</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

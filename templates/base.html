@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ page_title|default:"Dashboard" }}{% endblock %} – {{ site_settings.company_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/nexus.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+<!-- ═══ SIDEBAR ═══ -->
+<nav class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    {% if site_settings.logo %}
+    <img src="{{ site_settings.logo.url }}" alt="Logo" style="width:36px;height:36px;border-radius:6px;object-fit:cover">
+    {% else %}
+    <div class="brand-icon">🏢</div>
+    {% endif %}
+    <div>
+      <div class="brand-name">{{ site_settings.company_name|truncatechars:16 }}</div>
+      <div class="brand-ver">V2.4.1</div>
+    </div>
+  </div>
+  <div class="sidebar-divider"></div>
+
+  {% for item in nav_items %}
+  <a href="{{ item.url }}" class="nav-item {% if item.active %}active{% endif %}">
+    {% include "icons/"|add:item.icon|add:".svg" %}
+    {{ item.label }}
+    {% if item.count %}<span class="nav-badge">{{ item.count }}</span>{% endif %}
+  </a>
+  {% endfor %}
+
+  <!-- Settings (with sub-menu) -->
+  {% if user.is_superuser %}
+  <div class="nav-item {% if settings_active %}active{% endif %}" onclick="toggleSettings()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    Settings
+    <svg id="settings-caret" class="caret {% if settings_active %}open{% endif %}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+  </div>
+  <div id="settings-sub" class="nav-sub {% if settings_active %}open{% endif %}">
+    <a href="{% url 'settings_general' %}"   class="nav-item {% if current_path == '/settings/' or current_path == '/settings/general/' %}active{% endif %}">General</a>
+    {% if perms.core.system_view or perms.core.system_edit %}<a href="{% url 'settings_roles' %}"     class="nav-item {% if current_path == '/settings/roles/' %}active{% endif %}">User Roles</a>{% endif %}
+    <a href="{% url 'settings_branches' %}"  class="nav-item {% if current_path == '/settings/branches/' %}active{% endif %}">Branches</a>
+    <a href="{% url 'settings_security' %}"  class="nav-item {% if current_path == '/settings/security/' %}active{% endif %}">Security</a>
+  </div>
+  {% endif %}
+
+  <div class="sidebar-bottom">
+    <button class="new-entry-btn" onclick="openModal('new-entry-modal')">+ New Entry</button>
+    <div class="sidebar-divider"></div>
+    <a href="#" class="nav-item">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      Support
+    </a>
+    <form method="post" action="{% url 'logout' %}" style="display:inline">{% csrf_token %}
+      <button type="submit" class="nav-item" style="border:none;background:none;cursor:pointer;width:100%;color:inherit;font:inherit;padding:inherit;display:flex;align-items:center;gap:10px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sign Out
+      </button>
+    </form>
+  </div>
+</nav>
+
+<!-- ═══ MAIN ═══ -->
+<div class="main">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <button class="hamburger" onclick="toggleSidebar()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <span class="topbar-brand">{{ site_settings.company_name }}</span>
+    <span class="topbar-section">{{ page_title }}</span>
+    <div class="topbar-extra">
+      <form class="topbar-search" method="get" action="{% url 'inventory_list' %}">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input type="text" name="q" placeholder="Global search…">
+      </form>
+      <div style="position:relative">
+        <div class="branch-pill" style="cursor:pointer" onclick="document.getElementById('branch-dropdown').classList.toggle('open')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          {{ current_branch.name|default:'Select Branch' }}
+        </div>
+        <div id="branch-dropdown" class="dropdown-menu" style="min-width:200px">
+          {% for b in branches %}
+          <form method="post" action="{% url 'switch_branch' b.code %}" style="display:block">{% csrf_token %}
+            <button type="submit" class="dropdown-item {% if b.code == current_branch.code %}active{% endif %}" style="border:none;background:none;cursor:pointer;width:100%;font:inherit;text-align:left;display:flex;align-items:center;justify-content:space-between;padding:8px 14px">
+              {{ b.name }}
+              <span style="font-size:11px;color:var(--gray-400)">{{ b.code }}</span>
+            </button>
+          </form>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <div style="position:relative" id="profile-wrap">
+      <div class="avatar" onclick="document.getElementById('profile-dropdown').classList.toggle('open')">{{ request.user.get_initials|default:"U" }}</div>
+      <div id="profile-dropdown" class="dropdown-menu" style="min-width:180px;right:0">
+        <a href="{% url 'profile' %}" class="dropdown-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          My Profile
+        </a>
+        {% if user.is_superuser %}
+        <a href="{% url 'settings_general' %}" class="dropdown-item">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          Settings
+        </a>
+        {% endif %}
+        <div style="border-top:1px solid var(--gray-200);margin:4px 0"></div>
+        <form method="post" action="{% url 'logout' %}" style="display:block">{% csrf_token %}
+          <button type="submit" class="dropdown-item" style="border:none;background:none;cursor:pointer;width:100%;font:inherit">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sign Out
+          </button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <!-- TOAST MESSAGES -->
+  {% if messages %}
+  <div class="messages-container">
+    {% for msg in messages %}
+    <div class="toast {{ msg.tags }}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- PAGE BODY -->
+  <div class="page-body">
+    {% block content %}{% endblock %}
+  </div>
+</div>
+
+<!-- ═══ NEW ENTRY MODAL ═══ -->
+<div class="modal-overlay" id="new-entry-modal">
+  <div class="modal">
+    <div class="modal-title">Create New Entry</div>
+    <p style="font-size:13px;color:var(--gray-500);margin-bottom:16px">What type of entry would you like to create?</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      {% if perms.core.shipping_create %}<a href="{% url 'receiving_new' %}" class="btn btn-secondary" style="justify-content:center;padding:12px">📦 New Inbound</a>{% endif %}
+      {% if perms.core.shipping_create %}<a href="{% url 'dispatch_new' %}"  class="btn btn-secondary" style="justify-content:center;padding:12px">🚚 New Dispatch</a>{% endif %}
+      {% if perms.core.inventory_create %}<a href="{% url 'returns_new' %}"   class="btn btn-secondary" style="justify-content:center;padding:12px">↩️ New Return</a>{% endif %}
+      {% if perms.core.shipping_create %}<a href="{% url 'transfers_new' %}" class="btn btn-secondary" style="justify-content:center;padding:12px">🔄 New Transfer</a>{% endif %}
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal('new-entry-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>window.CURRENCY_SYM = '{{ site_settings.currency_symbol|escapejs }}';</script>
+<script src="{% static 'js/nexus.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

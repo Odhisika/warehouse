@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% load static core_extras %}
+
+{% block content %}
+<div style="padding:12px 24px 0">
+  <div class="breadcrumb">Warehouse › Branch Operations › <span class="current">Dashboard</span></div>
+</div>
+
+<!-- STAT CARDS -->
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="stat-label">Total Inv. Value</div>
+    <div class="stat-value">{{ site_settings.currency_symbol }}{{ total_inv_value|floatformat:0 }}</div>
+    <div class="stat-sub green">↑ 2.4% vs last week</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Total SKU Count</div>
+    <div class="stat-value">{{ total_sku_count }}</div>
+    <div class="stat-sub">Active items</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Pending Dispatches</div>
+    <div class="stat-value">{{ pending_dispatches }}</div>
+    <div class="stat-sub orange">{{ priority_alerts }} Priority items</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Low Stock Alerts</div>
+    <div class="stat-value red">{{ low_stock_alerts }}</div>
+    <div class="stat-sub red">Needs action</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Damaged Items</div>
+    <div class="stat-value">{{ damaged_items }}</div>
+    <div class="stat-sub">Pending inspection</div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="dash-grid">
+  <!-- LEFT COLUMN -->
+  <div class="dash-col">
+    <!-- Stock Movement Chart -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Stock Movement Analytics</span>
+        <div style="display:flex;gap:12px;align-items:center;font-size:12.5px;color:var(--gray-600)">
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#93B4F0;margin-right:4px"></span>Inbound</span>
+          <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#CBD5E1;margin-right:4px"></span>Outbound</span>
+        </div>
+      </div>
+      <div class="chart-area">
+        <div class="chart-bars">
+          {% with bars="80,55,95,72,130,48,105,90,60,82,44"|split:"," %}
+          {% for h in bars %}
+          <div class="bar-group">
+            <div class="bar inbound" style="height:{{ h }}px"></div>
+            <div class="bar outbound" style="height:{{ forloop.counter|add:"20" }}px"></div>
+          </div>
+          {% endfor %}
+          {% endwith %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Dispatches -->
+    <div class="card">
+      <div class="card-header" style="padding-bottom:10px">
+        <span class="card-title">Recent Dispatches</span>
+        <a href="{% url 'dispatch_list' %}" class="link" style="font-size:13px">View All</a>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Order ID</th><th>Destination</th><th>Carrier</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            {% for order in recent_dispatches %}
+            <tr>
+              <td><a href="{% url 'dispatch_detail' order.pk %}" class="link">{{ order.dispatch_id }}</a></td>
+              <td>{{ order.destination|default:"—" }}</td>
+              <td>{{ order.get_carrier_display|default:"—" }}</td>
+              <td>
+                {% if order.status == 'shipped' %}<span class="badge badge-green">SHIPPED</span>
+                {% elif order.status == 'processing' %}<span class="badge badge-blue">PROCESSING</span>
+                {% elif order.status == 'pending' %}<span class="badge badge-yellow">PENDING</span>
+                {% else %}<span class="badge badge-gray">{{ order.get_status_display }}</span>{% endif %}
+              </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:24px">No dispatches yet</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="dash-col">
+    <!-- Critical Alerts -->
+    <div class="card">
+      <div class="card-header" style="padding-bottom:12px">
+        <span class="card-title" style="color:var(--red)">Critical Alerts</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="alert-badge">{{ active_alerts|default:"0" }}</span>
+          <form method="POST" action="{% url 'clear_alerts' %}" style="display:inline">
+            {% csrf_token %}
+            <button type="button" class="btn btn-sm" style="color:var(--gray-600);background:none;border:1px solid var(--gray-300);border-radius:4px;cursor:pointer;font-size:11px;padding:2px 8px" onclick="openModal('clear-alerts-modal')">Clear All</button>
+          </form>
+        </div>
+      </div>
+      {% for alert in critical_alerts %}
+      <div class="alert-item">
+        <div style="margin-top:1px;flex-shrink:0">
+          {% if alert.severity == 'critical' %}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {% elif alert.severity == 'warning' %}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          {% else %}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          {% endif %}
+        </div>
+        <div>
+          <div class="alert-title">{{ alert.title }}</div>
+          <div class="alert-desc">{{ alert.description }}</div>
+        </div>
+      </div>
+      {% empty %}
+      <div style="padding:24px;text-align:center;color:var(--gray-400);font-size:13px">
+        No critical alerts
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Low Stock Alert Items -->
+    <div class="card">
+      <div class="card-header" style="padding-bottom:10px">
+        <span class="card-title">Low Stock Alert Items</span>
+        <button class="btn btn-primary btn-sm">Bulk Reorder</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>SKU</th><th>Item Name</th><th>Qty On Hand</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for alert in low_stock_items %}
+            <tr>
+              <td>{{ alert.product.sku }}</td>
+              <td>{{ alert.product.name }}</td>
+              <td class="red-val">{{ alert.product.stock_qty }} / {{ alert.product.reorder_level }}</td>
+              <td><a href="{% url 'receiving_new' %}" class="link">Reorder</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" style="text-align:center;color:var(--gray-400);padding:20px">All stock levels OK</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="clear-alerts-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title">Clear All Critical Alerts</div>
+    <p style="padding:20px 24px 0;margin:0;font-size:14px;color:var(--gray-600)">
+      Are you sure you want to clear all critical alerts? This action cannot be undone.
+    </p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('clear-alerts-modal')">Cancel</button>
+      <form method="POST" action="{% url 'clear_alerts' %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary" style="background:var(--red)">Clear All</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Invoicing</div></div>
+  <div class="page-actions">
+    {% if perms.core.invoicing_create %}
+    <a href="{% url 'supplier_invoice_create' %}" class="btn btn-primary">+ New Supplier Invoice</a>
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px;display:grid;grid-template-columns:1fr 1fr;gap:20px">
+  <div class="card">
+    <div class="card-header" style="padding-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+      <span class="card-title">Recent Waybills</span>
+      <a href="{% url 'waybill_list' %}" class="link" style="font-size:12px">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Waybill #</th><th>Transfer</th><th>From → To</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for w in waybills %}
+          <tr>
+            <td><a href="{% url 'waybill_detail' w.pk %}" class="link">{{ w.waybill_number }}</a></td>
+            <td style="font-family:var(--mono);font-size:12px">{{ w.transfer.reference }}</td>
+            <td>{{ w.transfer.from_branch_code }} → {{ w.transfer.to_branch_code }}</td>
+            <td><span class="badge badge-{{ w.status }}">{{ w.get_status_display }}</span></td>
+            <td style="font-size:12px;color:var(--gray-500)">{{ w.dispatched_at|date:"d M Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--gray-400)">No waybills yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header" style="padding-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+      <span class="card-title">Recent Supplier Invoices</span>
+      <a href="{% url 'supplier_invoice_list' %}" class="link" style="font-size:12px">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Internal Ref</th><th>Supplier</th><th>Invoice #</th><th>Total</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for inv in supplier_invoices %}
+          <tr>
+            <td><a href="{% url 'supplier_invoice_detail' inv.pk %}" class="link">{{ inv.internal_ref }}</a></td>
+            <td>{{ inv.supplier|default:"—" }}</td>
+            <td style="font-family:var(--mono);font-size:12px">{{ inv.invoice_number }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ inv.total|floatformat:2 }}</td>
+            <td><span class="badge badge-{{ inv.status }}">{{ inv.get_status_display }}</span></td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center;padding:24px;color:var(--gray-400)">No supplier invoices yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<style>
+.badge-dispatched { background:#DBEAFE;color:#1E40AF }
+.badge-received { background:#D1FAE5;color:#065F46 }
+.badge-partial { background:#FEF3C7;color:#92400E }
+.badge-reconciled { background:#D1FAE5;color:#065F46 }
+.badge-pending { background:#FEF3C7;color:#92400E }
+.badge-matched { background:#D1FAE5;color:#065F46 }
+.badge-cancelled { background:#FEE2E2;color:#991B1B }
+</style>
+{% endblock %}

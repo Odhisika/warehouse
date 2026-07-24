@@ -1,0 +1,307 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">Settings › <span class="current">Roles &amp; Access Control</span></div>
+    <div class="page-title">Roles &amp; Access Control</div>
+    <p style="font-size:13px;color:var(--gray-500);margin-top:4px">Manage warehouse permissions and staff access levels.</p>
+  </div>
+  <button class="btn btn-primary" onclick="openModal('create-user-modal')">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    Create User
+  </button>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;gap:16px;padding:16px 24px">
+  <!-- Role List -->
+  <div class="card" style="padding:0;overflow:hidden;flex:1 1 260px;align-self:flex-start">
+    <div style="padding:14px 16px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between">
+      <div class="stat-label" style="margin:0">Active Roles</div>
+      <span class="badge badge-blue">{{ groups|length }}</span>
+    </div>
+    <div style="padding:6px 8px;display:flex;flex-direction:column;gap:3px">
+      {% for group in groups %}
+      <form method="get" action="{% url 'settings_roles' %}" style="display:contents">
+        <button type="submit" name="role" value="{{ group.name }}" class="role-pill {% if group.name == selected_role %}active{% endif %}">
+          <span class="role-pill-name">{{ group.name }}</span>
+          <span class="role-pill-count">{{ group.user_set.count }}</span>
+        </button>
+      </form>
+      {% endfor %}
+    </div>
+    <div style="border-top:1px solid var(--gray-200);padding:10px 16px;background:var(--gray-50);display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:11.5px;color:var(--gray-500)">{{ total_users }} staff users</span>
+      <span style="font-size:11.5px;color:var(--blue);font-weight:600">{{ groups|length }} roles</span>
+    </div>
+  </div>
+
+  <!-- Right Panel -->
+  {% if current_group %}
+  <div class="card" style="overflow:visible;flex:999 1 500px;min-width:0">
+    <div class="card-header" style="padding:16px 16px 12px">
+      <div>
+        <div class="card-title">{{ current_group.name }}</div>
+        <div style="font-size:12px;color:var(--gray-500);margin-top:2px">{{ role_users|length }} user{{ role_users|length|pluralize }} assigned</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary btn-sm" onclick="openModal('create-user-modal')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          Add User
+        </button>
+      </div>
+    </div>
+
+    <!-- Users Table -->
+    {% if role_users %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Branches</th>
+            <th style="width:100px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in role_users %}
+          <tr data-user-id="{{ u.pk }}" data-branches="{% with profile=u.profile %}{% if not profile.is_global_admin %}{% for b in profile.allowed_branches.all %}{% if not forloop.first %},{% endif %}{{ b.code }}{% endfor %}{% endif %}{% endwith %}">
+            <td>
+              <div style="display:flex;align-items:center;gap:10px">
+                <div class="avatar" style="width:30px;height:30px;font-size:11px;flex-shrink:0">{{ u.first_name|first|default:u.username|first|upper }}{{ u.last_name|first|upper }}</div>
+                <div>
+                  <div style="font-weight:600;font-size:13px">{{ u.get_full_name|default:u.username }}</div>
+                  <div style="font-size:11px;color:var(--gray-400)">@{{ u.username }}</div>
+                </div>
+              </div>
+            </td>
+            <td style="color:var(--gray-500)">{{ u.email|default:'—' }}</td>
+            <td>
+              {% if u.is_active %}
+              <span class="badge badge-green">Active</span>
+              {% else %}
+              <span class="badge badge-gray">Inactive</span>
+              {% endif %}
+            </td>
+            <td style="font-size:12px;color:var(--gray-500)">
+              {% with profile=u.profile %}
+                {% if profile.is_global_admin %}
+                <span class="badge badge-blue">Global</span>
+                {% else %}
+                  {% for b in profile.allowed_branches.all %}
+                    <span class="badge badge-gray" style="margin:1px 2px">{{ b.code }}</span>
+                  {% empty %}
+                    <span style="color:var(--gray-400)">—</span>
+                  {% endfor %}
+                {% endif %}
+              {% endwith %}
+            </td>
+            <td>
+              <div style="display:flex;gap:4px;flex-wrap:wrap">
+                <form method="post" action="{% url 'settings_roles' %}?role={{ selected_role|urlencode }}" style="display:inline">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="toggle_active">
+                  <input type="hidden" name="user_id" value="{{ u.pk }}">
+                  <button type="submit" class="btn btn-sm {% if u.is_active %}btn-secondary{% else %}btn-primary{% endif %}" style="font-size:11px;padding:4px 8px" title="{% if u.is_active %}Deactivate{% else %}Activate{% endif %}">
+                    {% if u.is_active %}Deactivate{% else %}Activate{% endif %}
+                  </button>
+                </form>
+                <button type="button" class="btn btn-sm btn-secondary" style="font-size:11px;padding:4px 8px" onclick="openBranchModal({{ u.pk }}, '{{ u.username|escapejs }}')" title="Transfer to another branch">
+                  Move Branch
+                </button>
+                <form method="post" action="{% url 'settings_roles' %}?role={{ selected_role|urlencode }}" style="display:inline" onsubmit="return confirm('Permanently delete {{ u.username }}? This cannot be undone.')">
+                  {% csrf_token %}
+                  <input type="hidden" name="action" value="delete_user">
+                  <input type="hidden" name="user_id" value="{{ u.pk }}">
+                  <button type="submit" class="btn btn-sm btn-danger" style="font-size:11px;padding:4px 8px" title="Delete user">Delete</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div style="padding:32px 16px;text-align:center;color:var(--gray-400);font-size:14px">
+      No users assigned to this role yet.
+      <div style="margin-top:12px">
+        <button class="btn btn-primary btn-sm" onclick="openModal('create-user-modal')">Create a User</button>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Permissions Matrix -->
+    <div style="padding:16px;border-top:1px solid var(--gray-200)">
+      <div class="stat-label" style="margin-bottom:12px">Module Permissions – {{ current_group.name }}</div>
+      <form method="post" action="{% url 'settings_roles' %}?role={{ selected_role|urlencode }}">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="save_permissions">
+        <input type="hidden" name="group_id" value="{{ current_group.pk }}">
+        <div class="table-wrap">
+          <table class="perm-table">
+            <thead>
+              <tr>
+                <th>Resource Module</th>
+                {% for action in perm_actions %}
+                <th style="text-align:center;text-transform:capitalize">{{ action }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for mod_key, mod_info in perm_matrix.items %}
+              <tr>
+                <td>
+                  <div class="perm-name">{{ mod_info.label }}</div>
+                  <div class="perm-desc">{{ mod_info.desc }}</div>
+                </td>
+                {% for action_key, perm_data in mod_info.perms.items %}
+                <td style="text-align:center">
+                  <input type="checkbox" class="checkbox" name="perm_{{ mod_key }}_{{ action_key }}" {% if perm_data.checked %}checked{% endif %}>
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end">
+          <button type="submit" class="btn btn-primary btn-sm">Save Permissions</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <div class="card" style="padding:40px;text-align:center;color:var(--gray-400);flex:999 1 500px;min-width:0">
+    Select a role from the sidebar to manage its permissions and users.
+  </div>
+  {% endif %}
+</div>
+
+<!-- Create User Modal -->
+<div class="modal-overlay" id="create-user-modal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-title">Create New User</div>
+    <form method="post" action="{% url 'settings_roles' %}?role={{ selected_role|urlencode }}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="create_user">
+      <div class="form-row form-row-2" style="padding:0 0 16px 0">
+        <div class="form-group">
+          <label class="form-label">First Name</label>
+          <input type="text" name="first_name" class="form-control" placeholder="John">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Last Name</label>
+          <input type="text" name="last_name" class="form-control" placeholder="Doe">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Username <span style="color:var(--red)">*</span></label>
+        <input type="text" name="username" class="form-control" required placeholder="johndoe">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" placeholder="john@example.com">
+      </div>
+      <div class="form-row form-row-2" style="padding:0 0 16px 0">
+        <div class="form-group">
+          <label class="form-label">Password <span style="color:var(--red)">*</span></label>
+          <input type="password" name="password" class="form-control" required minlength="8" placeholder="Min. 8 characters">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirm Password <span style="color:var(--red)">*</span></label>
+          <input type="password" name="confirm_password" class="form-control" required placeholder="Repeat password">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Role</label>
+        <select name="role" class="form-control">
+          <option value="">— Select Role —</option>
+          {% for group in groups %}
+          <option value="{{ group.name }}" {% if group.name == selected_role %}selected{% endif %}>{{ group.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Branch Access</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
+          {% for branch in branches %}
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" name="branches" value="{{ branch.pk }}" class="checkbox" style="width:16px;height:16px">
+            {{ branch.name }} ({{ branch.code }})
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('create-user-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary" onclick="return validateCreateUser()">Create User</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Transfer Branch Modal -->
+<div class="modal-overlay" id="branch-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">Transfer Branch Access</div>
+    <p style="padding:0 24px;margin:0;font-size:13px;color:var(--gray-500)">
+      Update branch access for <strong id="branch-modal-username"></strong>
+    </p>
+    <form method="post" action="{% url 'settings_roles' %}?role={{ selected_role|urlencode }}" style="padding:16px 24px">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="transfer_branch">
+      <input type="hidden" name="user_id" id="branch-modal-user-id">
+      <div class="form-group">
+        <label class="form-label">Branch Access</label>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;padding-top:4px">
+          {% for branch in branches %}
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+            <input type="checkbox" name="branch_ids" value="{{ branch.pk }}" class="checkbox branch-check" style="width:16px;height:16px">
+            {{ branch.name }} ({{ branch.code }})
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('branch-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Branch Access</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function validateCreateUser() {
+  var pw = document.querySelector('#create-user-modal input[name="password"]');
+  var cpw = document.querySelector('#create-user-modal input[name="confirm_password"]');
+  if (pw.value !== cpw.value) {
+    alert('Passwords do not match.');
+    return false;
+  }
+  return true;
+}
+
+function openBranchModal(userId, username) {
+  document.getElementById('branch-modal-user-id').value = userId;
+  document.getElementById('branch-modal-username').textContent = username;
+  document.querySelectorAll('.branch-check').forEach(function(cb) { cb.checked = false; });
+  var row = document.querySelector('tr[data-user-id="' + userId + '"]');
+  if (row) {
+    var codes = row.getAttribute('data-branches') || '';
+    codes.split(',').forEach(function(code) {
+      code = code.trim();
+      if (!code) return;
+      document.querySelectorAll('.branch-check').forEach(function(cb) {
+        var label = cb.parentElement.textContent;
+        if (label.includes('(' + code + ')')) cb.checked = true;
+      });
+    });
+  }
+  openModal('branch-modal');
+}
+</script>
+{% endblock %}

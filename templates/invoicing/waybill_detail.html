@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'invoice_list' %}">Invoicing</a> / <a href="{% url 'waybill_list' %}">Waybills</a> / <span class="current">{{ waybill.waybill_number }}</span></div>
+    <div class="page-title">{{ waybill.waybill_number }}</div>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'waybill_pdf' waybill.pk %}" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      PDF
+    </a>
+  </div>
+</div>
+
+<div style="padding:16px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <div class="section-card" style="padding:16px">
+    <div class="section-label" style="margin-bottom:12px">Waybill Details</div>
+    <div class="info-row"><span>Transfer</span><span><a href="{% url 'transfers_detail' waybill.transfer.pk %}" class="link">{{ waybill.transfer.reference }}</a></span></div>
+    <div class="info-row"><span>From Branch</span><span>{{ waybill.transfer.from_branch_code }}</span></div>
+    <div class="info-row"><span>To Branch</span><span>{{ waybill.transfer.to_branch_code }}</span></div>
+    <div class="info-row"><span>Status</span><span class="badge badge-{{ waybill.status }}">{{ waybill.get_status_display }}</span></div>
+    <div class="info-row"><span>Dispatched At</span><span>{{ waybill.dispatched_at|date:"d M Y H:i" }}</span></div>
+    {% if waybill.received_at %}<div class="info-row"><span>Received At</span><span>{{ waybill.received_at|date:"d M Y H:i" }}</span></div>{% endif %}
+    <div class="info-row"><span>Dispatched By</span><span>{{ waybill.created_by_id|default:"—" }}</span></div>
+    {% if waybill.received_by_id %}<div class="info-row"><span>Received By</span><span>{{ waybill.received_by_id }}</span></div>{% endif %}
+  </div>
+  <div class="section-card" style="padding:16px">
+    <div class="section-label" style="margin-bottom:12px">Summary</div>
+    <div class="info-row"><span>Total Sent</span><span><strong>{{ waybill.total_sent }}</strong></span></div>
+    <div class="info-row"><span>Total Received</span><span><strong>{{ waybill.total_received }}</strong></span></div>
+    <div class="info-row"><span>Total Damaged</span><span><strong>{{ waybill.total_damaged }}</strong></span></div>
+    {% if waybill.received_at %}
+    <div class="info-row" {% if waybill.has_discrepancy %}style="color:var(--red)"{% endif %}>
+      <span>Difference</span>
+      <span><strong>{% if waybill.has_discrepancy %}⚠ {% endif %}{{ waybill.total_received|add:waybill.total_damaged }} / {{ waybill.total_sent }}</strong></span>
+    </div>
+    {% endif %}
+    {% if waybill.has_discrepancy %}
+    <div style="margin-top:8px;padding:8px 12px;background:#FEF2F2;border-radius:6px;font-size:12px;color:#991B1B">
+      ⚠ Discrepancy: sent and received quantities do not match
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if waybill.notes %}
+<div style="padding:0 24px 16px">
+  <div class="card" style="padding:16px">
+    <div class="stat-label" style="margin-bottom:6px">Notes</div>
+    <p style="font-size:13px;color:var(--gray-600);margin:0">{{ waybill.notes }}</p>
+  </div>
+</div>
+{% endif %}
+
+<div style="padding:0 24px 24px">
+  <div class="card">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Items ({{ waybill.items.count }})</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Product</th>
+            <th>Qty Sent</th>
+            <th>Qty Received</th>
+            <th>Damaged</th>
+            <th>Difference</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in waybill.items.all %}
+          <tr {% if item.qty_received is not None and item.qty_received|add:item.qty_damaged != item.qty_sent %}style="background:#FEF2F2"{% endif %}>
+            <td style="font-family:var(--mono);font-size:11px">{{ item.product.sku|default:"—" }}</td>
+            <td>{{ item.product.name|default:"Deleted" }}</td>
+            <td>{{ item.qty_sent }}</td>
+            <td>{% if item.qty_received is not None %}{{ item.qty_received }}{% else %}—{% endif %}</td>
+            <td>{{ item.qty_damaged }}</td>
+            <td>
+              {% if item.qty_received is not None %}
+                {% if item.qty_received|add:item.qty_damaged == item.qty_sent %}<span style="color:var(--green)">✓</span>
+                {% else %}<span style="color:var(--red)">⚠ Mismatch</span>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td style="font-size:12px;color:var(--gray-500)">{{ item.condition_notes|default:"" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400)">No items</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.info-row { display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--gray-100) }
+.info-row span:first-child { color:var(--gray-500) }
+.info-row span:last-child { font-weight:500 }
+.badge-dispatched { background:#DBEAFE;color:#1E40AF }
+.badge-received { background:#D1FAE5;color:#065F46 }
+.badge-partial { background:#FEF3C7;color:#92400E }
+.badge-reconciled { background:#D1FAE5;color:#065F46 }
+</style>
+{% endblock %}

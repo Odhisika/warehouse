@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div class="breadcrumb">Dispatch / <a href="{% url 'dispatch_detail' order.pk %}">{{ order.dispatch_id }}</a> / <span class="current">Ship</span></div>
+</div>
+<form method="post" style="padding:16px 24px;max-width:640px">
+  {% csrf_token %}
+  <div class="card" style="padding:16px">
+    <div class="card-header" style="padding-bottom:14px">
+      <span class="card-title">Ship {{ order.dispatch_id }}</span>
+      <div style="font-size:12px;color:var(--gray-500)">
+        Customer: {{ order.customer|default:"—" }} | Destination: {{ order.destination|default:"—" }} | Items: {{ order.items.count }}
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Vehicle *</label>
+      <select class="form-control" name="vehicle" id="vehicle-select" required>
+        <option value="">Select vehicle…</option>
+        {% for v in vehicles %}
+        <option value="{{ v.pk }}" data-driver-id="{{ v.current_driver_id|default:'' }}" data-driver-name="{{ v.current_driver_name|default:'' }}">
+          {{ v.plate_number }} — {{ v.get_vehicle_type_display }} ({{ v.capacity_weight_kg|floatformat:0 }} kg)
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Driver *</label>
+      <select class="form-control" name="driver" id="driver-select" required>
+        <option value="">Select driver…</option>
+        {% for d in drivers %}
+        <option value="{{ d.pk }}">{{ d.full_name }} — License: {{ d.license_number }}</option>
+        {% endfor %}
+      </select>
+      <div id="auto-driver-hint" style="font-size:11px;color:var(--gray-400);margin-top:3px;display:none">
+        Auto-assigned from vehicle. <a href="#" onclick="document.getElementById('driver-select').value='';return false" style="color:var(--blue)">Change driver</a>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <a href="{% url 'dispatch_detail' order.pk %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">Confirm Shipment</button>
+    </div>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var vehicleSelect = document.getElementById('vehicle-select');
+  var driverSelect = document.getElementById('driver-select');
+  var hint = document.getElementById('auto-driver-hint');
+
+  vehicleSelect.addEventListener('change', function() {
+    var opt = vehicleSelect.options[vehicleSelect.selectedIndex];
+    var driverId = opt.getAttribute('data-driver-id');
+    if (driverId) {
+      driverSelect.value = driverId;
+      hint.style.display = '';
+    } else {
+      hint.style.display = 'none';
+    }
+  });
+
+  // Trigger on load if vehicle already selected
+  if (vehicleSelect.value) {
+    vehicleSelect.dispatchEvent(new Event('change'));
+  }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Fleet Management</div></div>
+  <div class="page-actions">
+    <a href="{% url 'vehicle_new' %}" class="btn btn-primary">+ Add Vehicle</a>
+  </div>
+</div>
+<div style="padding:0 24px">
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);margin-bottom:16px">
+    <a href="{% url 'vehicle_list' %}" class="btn" style="border-radius:0;padding:8px 16px;border-bottom:2px solid var(--blue);font-weight:600;color:var(--blue)">Vehicles</a>
+    <a href="{% url 'driver_list' %}" class="btn" style="border-radius:0;padding:8px 16px;border-bottom:2px solid transparent;color:var(--gray-500)">Drivers</a>
+    <a href="{% url 'trip_list' %}" class="btn" style="border-radius:0;padding:8px 16px;border-bottom:2px solid transparent;color:var(--gray-500)">Trips</a>
+  </div>
+</div>
+<div style="padding:0 24px 16px">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Plate</th><th>Type</th><th>Make/Model</th><th>Capacity</th><th>Branch</th><th>Status</th><th>Documents</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for v in vehicles %}
+          <tr>
+            <td><a href="{% url 'vehicle_detail' v.pk %}" class="link" style="font-family:var(--mono);font-size:12px;font-weight:600">{{ v.plate_number }}</a></td>
+            <td>{{ v.get_vehicle_type_display }}</td>
+            <td>{{ v.make_model|default:"—" }}</td>
+            <td>{{ v.capacity_weight_kg|floatformat:0 }} kg</td>
+            <td>{% if v.assigned_branch %}<span class="badge badge-blue">{{ v.assigned_branch }}</span>{% else %}—{% endif %}</td>
+            <td>
+              {% if v.status == 'active' %}<span class="badge badge-green">ACTIVE</span>
+              {% elif v.status == 'maintenance' %}<span class="badge badge-orange">MAINTENANCE</span>
+              {% else %}<span class="badge badge-gray">RETIRED</span>{% endif %}
+            </td>
+            <td>
+              {% if not v.documents_valid %}<span class="badge badge-red">EXPIRED</span>
+              {% else %}<span class="badge badge-green">OK</span>{% endif %}
+            </td>
+            <td>
+              <a href="{% url 'vehicle_detail' v.pk %}" class="btn btn-secondary btn-sm">View</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--gray-400)">No vehicles registered</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

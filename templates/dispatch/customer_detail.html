@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="breadcrumb">Inventory / Dispatch / Customers / <span class="current">{{ customer.name }}</span></div>
+    <strong>{{ customer.name }}</strong>
+  </div>
+  <div style="display:flex;gap:8px">
+    {% if perms.core.shipping_edit %}
+    <a href="{% url 'customer_edit' customer.pk %}" class="btn btn-secondary">Edit Customer</a>
+    <form method="post" action="{% url 'customer_delete' customer.pk %}" style="display:inline" onsubmit="return confirm('Delete customer {{ customer.name }}?')">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger">Delete</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Customer Info</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--gray-700)">
+        <div>Customer ID: <strong>{{ customer.customer_id|default:"—" }}</strong></div>
+        <div>Zone: <strong>{{ customer.zone|default:"—" }}</strong></div>
+        <div>Shipping: <strong>{{ customer.shipping_method|default:"—" }}</strong></div>
+        <div>Credit:
+          {% if customer.credit_status == 'ok' %}<span class="badge badge-green">OK</span>
+          {% elif customer.credit_status == 'hold' %}<span class="badge badge-orange">HOLD</span>
+          {% else %}<span class="badge badge-gray">{{ customer.credit_status|upper }}</span>{% endif %}
+        </div>
+        <div>Email: <strong>{{ customer.email|default:"—" }}</strong></div>
+        <div>Phone: <strong>{{ customer.phone|default:"—" }}</strong></div>
+      </div>
+    </div>
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Dispatch History</div>
+      <div style="font-size:13px;color:var(--gray-700)">
+        <div>Total Orders: <strong>{{ orders.count }}</strong></div>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Dispatch Orders</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dispatch ID</th><th>Destination</th><th>Carrier</th><th>Grand Total</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for o in orders %}
+          <tr>
+            <td><a href="{% url 'dispatch_detail' o.pk %}" class="link">{{ o.dispatch_id }}</a></td>
+            <td>{{ o.destination|default:"—" }}</td>
+            <td>{{ o.get_carrier_display|default:"—" }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ o.grand_total|floatformat:2 }}</td>
+            <td>
+              {% if o.status == 'shipped' %}<span class="badge badge-green">SHIPPED</span>
+              {% elif o.status == 'delivered' %}<span class="badge badge-green">DELIVERED</span>
+              {% elif o.status == 'processing' %}<span class="badge badge-blue">PROCESSING</span>
+              {% elif o.status == 'pending' %}<span class="badge badge-yellow">PENDING</span>
+              {% else %}<span class="badge badge-gray">{{ o.get_status_display }}</span>{% endif %}
+            </td>
+            <td>{{ o.created_at|date:"d/m/Y" }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">No dispatch orders for this customer</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:12px 24px;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;justify-content:space-between">
+  <div class="page-title" style="font-size:16px;margin:0">New Supplier Invoice</div>
+  <div>
+    <button type="submit" form="invoice-form" class="btn btn-primary">Save Invoice</button>
+    <a href="{% url 'supplier_invoice_list' %}" class="btn btn-danger">Cancel</a>
+  </div>
+</div>
+
+<form id="invoice-form" method="post" style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+  {% csrf_token %}
+  <div style="padding:16px;border-right:1px solid var(--gray-200);overflow-y:auto">
+    <div class="stat-label" style="margin-bottom:10px">Supplier & Invoice Details</div>
+
+    <div class="form-group">
+      <div class="form-label">Supplier</div>
+      <select name="supplier" class="form-control" required>
+        <option value="">Select supplier…</option>
+        {% for s in suppliers %}
+        <option value="{{ s.pk }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <div class="form-label">Invoice Number</div>
+      <input type="text" name="invoice_number" class="form-control" placeholder="Supplier's invoice reference" required>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <div class="form-label">PO Reference</div>
+        <input type="text" name="po_reference" class="form-control" placeholder="Optional">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Invoice Date</div>
+        <input type="date" name="invoice_date" class="form-control" value="{{ today|date:'Y-m-d' }}">
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <div class="form-label">Due Date</div>
+        <input type="date" name="due_date" class="form-control">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Status</div>
+        <input type="text" class="form-control" value="Pending" disabled style="color:var(--gray-500)">
+      </div>
+    </div>
+
+    <div class="form-divider"></div>
+    <div class="stat-label" style="margin-bottom:10px">Financial Breakdown</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group">
+        <div class="form-label">Subtotal ({{ site_settings.currency_symbol }})</div>
+        <input type="number" name="subtotal" step="0.01" class="form-control" value="0">
+      </div>
+      <div class="form-group">
+        <div class="form-label">Tax ({{ site_settings.currency_symbol }})</div>
+        <input type="number" name="tax" step="0.01" class="form-control" value="0">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <div class="form-label">Total ({{ site_settings.currency_symbol }})</div>
+      <input type="number" name="total" step="0.01" class="form-control" value="0">
+    </div>
+
+    <div class="form-group">
+      <div class="form-label">Notes</div>
+      <textarea name="notes" class="form-control" rows="3" placeholder="Optional notes…"></textarea>
+    </div>
+  </div>
+
+  <div style="padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px">
+    <div class="stat-label" style="margin-bottom:6px">Invoice Line Items</div>
+    <div class="search-bar" style="margin-bottom:8px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="product-search" placeholder="Search products…" oninput="filterProducts()">
+    </div>
+
+    <div id="product-list" style="max-height:300px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:6px;padding:4px">
+      {% for p in products %}
+      <div class="product-item" style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer" onclick="addItem('{{ p.pk }}', '{{ p.sku|escapejs }}', '{{ p.name|escapejs }}')">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:13px">{{ p.name }}</div>
+          <div style="font-size:11px;color:var(--gray-500)">SKU: {{ p.sku }}</div>
+        </div>
+        <button type="button" style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:18px">+</button>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>SKU</th><th>Product</th><th>Qty Invoiced</th><th>Unit Price</th><th>Qty Received</th><th></th></tr></thead>
+          <tbody id="items-tbody">
+            <tr id="items-empty"><td colspan="6" style="text-align:center;padding:24px;color:var(--gray-400)">Add products from the list above</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</form>
+
+{% block extra_js %}
+<script>
+function filterProducts() {
+  const q = document.getElementById('product-search').value.toLowerCase();
+  document.querySelectorAll('.product-item').forEach(el => {
+    el.style.display = el.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+let rowCounter = 0;
+function addItem(pk, sku, name) {
+  const empty = document.getElementById('items-empty');
+  if (empty) empty.remove();
+  if (document.getElementById(`item-row-${pk}`)) return;
+  rowCounter++;
+  const tbody = document.getElementById('items-tbody');
+  const tr = document.createElement('tr');
+  tr.id = `item-row-${pk}`;
+  tr.innerHTML = `
+    <input type="hidden" name="product_${rowCounter}" value="${pk}">
+    <td style="font-family:var(--mono);font-size:11px">${sku}</td>
+    <td>${name}</td>
+    <td><input type="number" name="qty_invoiced_${rowCounter}" value="1" min="1" style="width:70px;padding:4px 6px;border:1px solid var(--gray-300);border-radius:4px;font-size:12px;text-align:center"></td>
+    <td><input type="number" name="unit_price_${rowCounter}" step="0.01" value="0" style="width:90px;padding:4px 6px;border:1px solid var(--gray-300);border-radius:4px;font-size:12px;text-align:center"></td>
+    <td><input type="number" name="qty_received_${rowCounter}" value="0" min="0" style="width:70px;padding:4px 6px;border:1px solid var(--gray-300);border-radius:4px;font-size:12px;text-align:center"></td>
+    <td><button type="button" onclick="this.closest('tr').remove()" style="background:none;border:none;cursor:pointer;color:var(--gray-400)">✕</button></td>
+  `;
+  tbody.appendChild(tr);
+}
+</script>
+{% endblock %}
+{% endblock %}

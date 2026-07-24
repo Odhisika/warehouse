@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="breadcrumb"><a href="{% url 'inventory_list' %}">Inventory</a> / <span class="current">{{ product.name }}</span></div>
+    <strong>{{ product.name }}</strong>
+    {% if product.status == 'in_stock' %}<span class="badge badge-green">In Stock</span>
+    {% elif product.status == 'low_stock' %}<span class="badge badge-yellow">Low Stock</span>
+    {% else %}<span class="badge badge-red">Out of Stock</span>{% endif %}
+  </div>
+  <div style="display:flex;gap:8px">
+    {% if perms.core.inventory_edit %}
+    <a href="{% url 'product_edit' product.pk %}" class="btn btn-secondary">Edit Product</a>
+    {% endif %}
+    {% if perms.core.shipping_create %}
+    <a href="{% url 'transfers_new' %}" class="btn btn-primary">Transfer Stock</a>
+    {% endif %}
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <!-- Top grid: Product Info + Stock Info -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Product Info</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-700)">
+        <div style="display:flex;justify-content:space-between"><span>SKU</span><strong style="font-family:var(--mono)">{{ product.sku }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Category</span><strong>{{ product.category|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Batch Number</span><strong>{{ product.batch_number|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Expiry Date</span><strong>{{ product.expiry_date|default:"N/A" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Condition</span><strong>{{ product.get_condition_display|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Sourced From</span><strong>{% if product.sourced_from_branch %}<span class="badge badge-blue">{{ product.sourced_from_branch }}</span>{% else %}—{% endif %}</strong></div>
+      </div>
+    </div>
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Stock &amp; Pricing</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-700)">
+        <div style="display:flex;justify-content:space-between"><span>Stock Qty</span>
+          <strong style="{% if product.stock_qty == 0 %}color:var(--red){% endif %}">{{ product.stock_qty }} units</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Reserved Qty</span><strong>{{ product.reserved_qty }} units</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Reorder Level</span><strong>{{ product.reorder_level }} units</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Unit Cost</span><strong>{{ site_settings.currency_symbol }}{{ product.unit_cost|floatformat:2 }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Total Value</span><strong>{{ site_settings.currency_symbol }}{{ product.total_value|floatformat:2 }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Created</span><strong>{{ product.created_at|date:"d/m/Y H:i" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Last Updated</span><strong>{{ product.updated_at|date:"d/m/Y H:i" }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  {% if alerts %}
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Stock Alerts</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Type</th><th>Message</th><th>Priority</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for alert in alerts %}
+          <tr>
+            <td>
+              {% if alert.alert_type == 'low_stock' %}<span class="badge badge-yellow">Low Stock</span>
+              {% elif alert.alert_type == 'out_of_stock' %}<span class="badge badge-red">Out of Stock</span>
+              {% elif alert.alert_type == 'expiring' %}<span class="badge badge-orange">Expiring</span>
+              {% else %}<span class="badge badge-gray">{{ alert.get_alert_type_display }}</span>{% endif %}
+            </td>
+            <td>{{ alert.message|default:"—" }}</td>
+            <td>{% if alert.priority %}<span class="badge badge-red">HIGH</span>{% else %}Normal{% endif %}</td>
+            <td>{{ alert.created_at|date:"d/m/Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Recent Dispatches -->
+  {% if recent_dispatches %}
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Recent Dispatches</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dispatch ID</th><th>Customer</th><th>Qty</th><th>Unit Price</th><th>Line Total</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for item in recent_dispatches %}
+          <tr>
+            <td><a href="{% url 'dispatch_detail' item.order.pk %}" class="link">{{ item.order.dispatch_id }}</a></td>
+            <td>{{ item.order.customer|default:"—" }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ item.unit_price|floatformat:2 }}</td>
+            <td><strong>{{ site_settings.currency_symbol }}{{ item.line_total|floatformat:2 }}</strong></td>
+            <td>
+              {% if item.order.status == 'delivered' %}<span class="badge badge-green">DELIVERED</span>
+              {% elif item.order.status == 'shipped' %}<span class="badge badge-green">SHIPPED</span>
+              {% elif item.order.status == 'processing' %}<span class="badge badge-blue">PROCESSING</span>
+              {% elif item.order.status == 'cancelled' %}<span class="badge badge-gray">CANCELLED</span>
+              {% else %}<span class="badge badge-yellow">{{ item.order.get_status_display }}</span>{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Recent Inbound -->
+  {% if recent_inbound %}
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Recent Inbound Shipments</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Invoice Ref</th><th>Supplier</th><th>Qty</th><th>Unit Cost</th><th>Condition</th><th>Date</th></tr></thead>
+        <tbody>
+          {% for item in recent_inbound %}
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px">{{ item.shipment.invoice_ref|default:"—" }}</td>
+            <td>{{ item.shipment.supplier|default:"—" }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ item.unit_cost|floatformat:2 }}</td>
+            <td>{{ item.get_condition_display|default:"—" }}</td>
+            <td>{{ item.shipment.receive_date|date:"d/m/Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Recent Returns -->
+  {% if recent_returns %}
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Recent Returns</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Return ID</th><th>Original Order</th><th>Qty</th><th>Condition</th></tr></thead>
+        <tbody>
+          {% for item in recent_returns %}
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px">{{ item.return_request }}</td>
+            <td>
+              {% if item.return_request.original_order %}
+              <a href="{% url 'dispatch_detail' item.return_request.original_order.pk %}" class="link">{{ item.return_request.original_order.dispatch_id }}</a>
+              {% else %}—{% endif %}
+            </td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.get_condition_display|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

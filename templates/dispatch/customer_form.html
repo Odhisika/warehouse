@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div class="breadcrumb">Inventory / Dispatch / Customers / <span class="current">{% if customer %}Edit{{ customer.name }}{% else %}New Customer{% endif %}</span></div>
+</div>
+
+<form method="post" style="padding:16px 24px;max-width:640px">
+  {% csrf_token %}
+  <div class="card" style="padding:16px">
+    <div class="card-header" style="padding-bottom:14px"><span class="card-title">{% if customer %}Edit Customer{% else %}New Customer{% endif %}</span></div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Customer Name *</label>
+      <input class="form-control" type="text" name="name" value="{{ customer.name|default:'' }}" required>
+    </div>
+    <div class="form-group" style="margin-bottom:12px">
+      <label class="form-label">Customer ID</label>
+      <input class="form-control" type="text" name="customer_id" value="{{ customer.customer_id|default:'' }}" placeholder="e.g. TR-001">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Zone</label>
+        <input class="form-control" type="text" name="zone" value="{{ customer.zone|default:'' }}" placeholder="e.g. Accra">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Shipping Method</label>
+        <select class="form-control" name="shipping_method">
+          <option value="">Select…</option>
+          <option value="Express" {% if customer.shipping_method == 'Express' %}selected{% endif %}>Express</option>
+          <option value="Standard" {% if customer.shipping_method == 'Standard' %}selected{% endif %}>Standard</option>
+          <option value="Economy" {% if customer.shipping_method == 'Economy' %}selected{% endif %}>Economy</option>
+          <option value="Freight" {% if customer.shipping_method == 'Freight' %}selected{% endif %}>Freight</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="form-group">
+        <label class="form-label">Credit Status</label>
+        <select class="form-control" name="credit_status">
+          <option value="ok" {% if customer.credit_status == 'ok' %}selected{% endif %}>OK</option>
+          <option value="hold" {% if customer.credit_status == 'hold' %}selected{% endif %}>Hold</option>
+          <option value="blocked" {% if customer.credit_status == 'blocked' %}selected{% endif %}>Blocked</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone</label>
+        <input class="form-control" type="text" name="phone" value="{{ customer.phone|default:'' }}" placeholder="+233-...">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:14px">
+      <label class="form-label">Email</label>
+      <input class="form-control" type="email" name="email" value="{{ customer.email|default:'' }}" placeholder="customer@example.com">
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <a href="{% if customer %}{% url 'customer_detail' customer.pk %}{% else %}{% url 'customer_list' %}{% endif %}" class="btn btn-secondary">Cancel</a>
+      <button type="submit" class="btn btn-primary">{% if customer %}Save Changes{% else %}Create Customer{% endif %}</button>
+    </div>
+  </div>
+</form>
+{% endblock %}

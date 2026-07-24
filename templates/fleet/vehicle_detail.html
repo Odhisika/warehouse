@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div class="breadcrumb">Fleet / <span class="current">{{ vehicle.plate_number }}</span></div>
+  <div style="display:flex;gap:8px">
+    <a href="{% url 'vehicle_edit' vehicle.pk %}" class="btn btn-secondary">Edit</a>
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Vehicle Info</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-700)">
+        <div style="display:flex;justify-content:space-between"><span>Plate Number</span><strong style="font-family:var(--mono)">{{ vehicle.plate_number }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Type</span><strong>{{ vehicle.get_vehicle_type_display }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Make/Model</span><strong>{{ vehicle.make_model|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Branch</span><strong>{{ vehicle.assigned_branch|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Status</span>
+          {% if vehicle.status == 'active' %}<span class="badge badge-green">ACTIVE</span>
+          {% elif vehicle.status == 'maintenance' %}<span class="badge badge-orange">MAINTENANCE</span>
+          {% else %}<span class="badge badge-gray">RETIRED</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Capacity &amp; Documents</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-700)">
+        <div style="display:flex;justify-content:space-between"><span>Weight Capacity</span><strong>{{ vehicle.capacity_weight_kg|floatformat:0 }} kg</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Volume Capacity</span><strong>{{ vehicle.capacity_volume_m3|floatformat:1 }} m³</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Insurance Expiry</span>
+          {% if vehicle.insurance_expiry %}<strong style="{% if not vehicle.insurance_valid %}color:var(--red){% endif %}">{{ vehicle.insurance_expiry|date:"d/m/Y" }}</strong>
+          {% else %}—{% endif %}</div>
+        <div style="display:flex;justify-content:space-between"><span>Last Service</span><strong>{{ vehicle.last_service_date|default:"N/A"|date:"d/m/Y" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Fitness Cert Expiry</span>
+          {% if vehicle.fitness_cert_expiry %}<strong style="{% if not vehicle.fitness_valid %}color:var(--red){% endif %}">{{ vehicle.fitness_cert_expiry|date:"d/m/Y" }}</strong>
+          {% else %}—{% endif %}</div>
+      </div>
+    </div>
+  </div>
+
+  {% if vehicle.notes %}
+  <div class="section-card" style="padding:16px;margin-top:16px">
+    <div class="section-label" style="margin-bottom:8px">Notes</div>
+    <div style="font-size:13px;color:var(--gray-700)">{{ vehicle.notes|linebreaksbr }}</div>
+  </div>
+  {% endif %}
+
+  <!-- Current Driver -->
+  {% with current=assignments.first %}
+  {% if current and current.is_current %}
+  <div class="section-card" style="padding:16px;margin-top:16px;border-left:3px solid var(--green)">
+    <div class="section-label" style="margin-bottom:8px;color:var(--green)">Current Driver</div>
+    <div style="display:flex;align-items:center;gap:12px;font-size:13px">
+      <strong><a href="{% url 'driver_detail' current.driver.pk %}" class="link">{{ current.driver.full_name }}</a></strong>
+      <span style="color:var(--gray-500)">License: {{ current.driver.license_number }}</span>
+      <span style="color:var(--gray-500)">Phone: {{ current.driver.phone|default:"—" }}</span>
+      <span style="color:var(--gray-500)">Since: {{ current.start_date|date:"d/m/Y" }}</span>
+    </div>
+  </div>
+  {% endif %}
+  {% endwith %}
+
+  <!-- Assign Driver -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Assign Driver</span></div>
+    <div style="padding:12px 16px">
+      <form method="post" action="{% url 'assign_driver_vehicle' %}" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+        {% csrf_token %}
+        <input type="hidden" name="vehicle_id" value="{{ vehicle.pk }}">
+        <div class="form-group" style="flex:1;min-width:200px;margin:0">
+          <label class="form-label">Driver</label>
+          <select class="form-control" name="driver_id" required>
+            <option value="">Select driver…</option>
+            {% for d in all_drivers %}
+            <option value="{{ d.pk }}">{{ d.full_name }} — {{ d.license_number }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group" style="width:160px;margin:0">
+          <label class="form-label">Start Date</label>
+          <input class="form-control" type="date" name="start_date" required>
+        </div>
+        <button type="submit" class="btn btn-primary" style="height:38px">Assign</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Driver Assignments -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Driver Assignments</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Driver</th><th>Start Date</th><th>End Date</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for a in assignments %}
+          <tr>
+            <td><a href="{% url 'driver_detail' a.driver.pk %}" class="link">{{ a.driver.full_name }}</a></td>
+            <td>{{ a.start_date|date:"d/m/Y" }}</td>
+            <td>{{ a.end_date|date:"d/m/Y"|default:"Present" }}</td>
+            <td>{% if a.is_current %}<span class="badge badge-green">CURRENT</span>{% else %}<span class="badge badge-gray">Past</span>{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" style="text-align:center;padding:20px;color:var(--gray-400)">No driver assignments</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Recent Trips -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Recent Trips</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Trip</th><th>Driver</th><th>Linked To</th><th>Route</th><th>Distance</th><th>Cost</th><th>Status</th></tr></thead>
+        <tbody>
+          {% for t in trips %}
+          <tr>
+            <td><a href="{% url 'trip_detail' t.pk %}" class="link" style="font-family:var(--mono);font-size:12px">{{ t.trip_number }}</a></td>
+            <td>{{ t.driver }}</td>
+            <td>{% if t.dispatch_order %}<a href="{% url 'dispatch_detail' t.dispatch_order.pk %}" class="link">{{ t.dispatch_order.dispatch_id }}</a>{% elif t.transfer %}<a href="{% url 'transfers_detail' t.transfer.pk %}" class="link">{{ t.transfer.reference }}</a>{% else %}—{% endif %}</td>
+            <td>{{ t.route|default:"—" }}</td>
+            <td>{{ t.distance_km }} km</td>
+            <td>{{ site_settings.currency_symbol }}{{ t.total_trip_cost|floatformat:2 }}</td>
+            <td>
+              {% if t.status == 'completed' %}<span class="badge badge-green">COMPLETED</span>
+              {% elif t.status == 'in_transit' %}<span class="badge badge-blue">IN TRANSIT</span>
+              {% elif t.status == 'planned' %}<span class="badge badge-yellow">PLANNED</span>
+              {% else %}<span class="badge badge-gray">{{ t.get_status_display }}</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--gray-400)">No trips yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

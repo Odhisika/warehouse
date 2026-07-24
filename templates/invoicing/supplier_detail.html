@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb"><a href="{% url 'invoice_list' %}">Invoicing</a> / <a href="{% url 'supplier_invoice_list' %}">Supplier Invoices</a> / <span class="current">{{ invoice.internal_ref }}</span></div>
+    <div class="page-title">{{ invoice.internal_ref }}</div>
+  </div>
+  <div class="page-actions">
+    <a href="{% url 'supplier_invoice_pdf' invoice.pk %}" class="btn btn-secondary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      PDF
+    </a>
+  </div>
+</div>
+
+<div style="padding:16px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <div class="section-card" style="padding:16px">
+    <div class="section-label" style="margin-bottom:12px">Invoice Details</div>
+    <div class="info-row"><span>Supplier</span><span><strong>{{ invoice.supplier|default:"—" }}</strong></span></div>
+    <div class="info-row"><span>Invoice Number</span><span>{{ invoice.invoice_number }}</span></div>
+    <div class="info-row"><span>PO Reference</span><span>{{ invoice.po_reference|default:"—" }}</span></div>
+    <div class="info-row"><span>Invoice Date</span><span>{{ invoice.invoice_date|date:"d M Y" }}</span></div>
+    <div class="info-row"><span>Due Date</span><span>{{ invoice.due_date|date:"d M Y"|default:"—" }}</span></div>
+    <div class="info-row"><span>Status</span><span class="badge badge-{{ invoice.status }}">{{ invoice.get_status_display }}</span></div>
+  </div>
+  <div class="section-card" style="padding:16px">
+    <div class="section-label" style="margin-bottom:12px">Financial Summary</div>
+    <div class="info-row"><span>Subtotal</span><span>{{ site_settings.currency_symbol }} {{ invoice.subtotal|floatformat:2 }}</span></div>
+    <div class="info-row"><span>Tax</span><span>{{ site_settings.currency_symbol }} {{ invoice.tax|floatformat:2 }}</span></div>
+    <div class="info-row grand"><span>Total</span><span><strong>{{ site_settings.currency_symbol }} {{ invoice.total|floatformat:2 }}</strong></span></div>
+    <div class="info-row"><span>Qty Invoiced</span><span>{{ invoice.total_qty_invoiced }}</span></div>
+    <div class="info-row"><span>Qty Received</span><span>{{ invoice.total_qty_received }}</span></div>
+    {% if invoice.inbound_shipment %}
+    <div class="info-row"><span>Linked Shipment</span><span><a href="{% url 'receiving_detail' invoice.inbound_shipment.pk %}" class="link">{{ invoice.inbound_shipment.invoice_ref|default:invoice.inbound_shipment.pk }}</a></span></div>
+    {% endif %}
+    {% if invoice.has_discrepancy %}
+    <div style="margin-top:8px;padding:8px 12px;background:#FEF2F2;border-radius:6px;font-size:12px;color:#991B1B">
+      ⚠ Quantity discrepancy: invoiced {{ invoice.total_qty_invoiced }}, received {{ invoice.total_qty_received }}
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if invoice.notes %}
+<div style="padding:0 24px 16px">
+  <div class="card" style="padding:16px">
+    <div class="stat-label" style="margin-bottom:6px">Notes</div>
+    <p style="font-size:13px;color:var(--gray-600);margin:0">{{ invoice.notes }}</p>
+  </div>
+</div>
+{% endif %}
+
+<div style="padding:0 24px 24px">
+  <div class="card">
+    <div class="card-header" style="padding-bottom:10px;display:flex;justify-content:space-between;align-items:center">
+      <span class="card-title">Invoice Items ({{ invoice.items.count }})</span>
+      {% if not invoice.inbound_shipment and perms.core.invoicing_edit %}
+      <form method="post" action="{% url 'supplier_invoice_match' invoice.pk %}" style="display:flex;gap:8px;align-items:center">
+        {% csrf_token %}
+        <select name="shipment_id" class="form-control" style="width:auto;font-size:12px;padding:4px 8px">
+          <option value="">Match to shipment…</option>
+          {% for s in shipments %}
+          <option value="{{ s.pk }}">{{ s.invoice_ref|default:s.pk }} ({{ s.receive_date }})</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-secondary btn-sm">Match</button>
+      </form>
+      {% endif %}
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Product</th>
+            <th>Qty Invoiced</th>
+            <th>Unit Price</th>
+            <th>Line Total</th>
+            <th>Qty Received</th>
+            <th>Difference</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in invoice.items.all %}
+          <tr {% if item.qty_invoiced != item.qty_received %}style="background:#FEF2F2"{% endif %}>
+            <td style="font-family:var(--mono);font-size:11px">{{ item.product.sku|default:"—" }}</td>
+            <td>{{ item.product.name|default:"Deleted" }}</td>
+            <td>{{ item.qty_invoiced }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ item.unit_price|floatformat:2 }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ item.line_total|floatformat:2 }}</td>
+            <td>{{ item.qty_received }}</td>
+            <td>
+              {% if item.qty_invoiced == item.qty_received %}<span style="color:var(--green)">✓</span>
+              {% else %}<span style="color:var(--red)">⚠ {{ item.qty_invoiced|add:"0" }} vs {{ item.qty_received }}</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--gray-400)">No items</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<style>
+.info-row { display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--gray-100) }
+.info-row span:first-child { color:var(--gray-500) }
+.info-row span:last-child { font-weight:500 }
+.info-row.grand span:last-child { font-size:15px }
+.badge-pending { background:#FEF3C7;color:#92400E }
+.badge-matched { background:#D1FAE5;color:#065F46 }
+.badge-partial { background:#FEF3C7;color:#92400E }
+.badge-reconciled { background:#D1FAE5;color:#065F46 }
+.badge-cancelled { background:#FEE2E2;color:#991B1B }
+</style>
+{% endblock %}

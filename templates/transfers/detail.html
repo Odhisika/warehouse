@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load core_extras %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <a href="{% url 'transfers_list' %}" style="color:var(--gray-400);text-decoration:none">&larr; Back</a>
+      <div class="page-title">{{ transfer.reference }}</div>
+      <span class="badge badge-{{ transfer.status }}">{{ transfer.get_status_display }}</span>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    {% if perms.core.shipping_edit %}
+    {% if transfer.status == 'draft' %}
+    <form method="post" action="{% url 'transfers_send' transfer.pk %}" style="display:inline">{% csrf_token %}<button type="submit" class="btn btn-primary">Send Transfer</button></form>
+    {% endif %}
+    {% if transfer.status == 'pending' %}
+    <button type="button" class="btn btn-primary" onclick="openModal('dispatch-modal')">Dispatch Transfer</button>
+    {% endif %}
+    {% if transfer.status == 'in_transit' and can_receive %}
+    <a href="{% url 'transfers_verify_receive' transfer.pk %}" class="btn btn-success">Receive Stock</a>
+    {% endif %}
+    {% if transfer.status != 'complete' and transfer.status != 'received' and transfer.status != 'cancelled' %}
+    <button type="button" class="btn btn-danger" onclick="openModal('cancel-modal')">Cancel</button>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+<div style="padding:16px 24px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <div class="card" style="padding:16px">
+    <div class="stat-label" style="margin-bottom:12px">Transfer Details</div>
+    <div class="info-row"><span>From</span><span>{{ transfer.from_branch_code }}</span></div>
+    <div class="info-row"><span>To</span><span>{{ transfer.to_branch_code }}</span></div>
+    <div class="info-row"><span>Status</span><span class="badge badge-{{ transfer.status }}">{{ transfer.get_status_display }}</span></div>
+    <div class="info-row"><span>Created</span><span>{{ transfer.created_at|date:"d M Y H:i" }}</span></div>
+    {% if transfer.completed_at %}
+    <div class="info-row"><span>Completed</span><span>{{ transfer.completed_at|date:"d M Y H:i" }}</span></div>
+    {% endif %}
+    {% if transfer.assigned_vehicle %}
+    <div class="info-row"><span>Vehicle</span><span><a href="{% url 'vehicle_detail' transfer.assigned_vehicle.pk %}" class="link">{{ transfer.assigned_vehicle.plate_number }}</a> ({{ transfer.assigned_vehicle.get_vehicle_type_display }})</span></div>
+    {% endif %}
+    {% if transfer.assigned_driver %}
+    <div class="info-row"><span>Driver</span><span><a href="{% url 'driver_detail' transfer.assigned_driver.pk %}" class="link">{{ transfer.assigned_driver.full_name }}</a></span></div>
+    {% endif %}
+  </div>
+  <div class="card" style="padding:16px">
+    <div class="stat-label" style="margin-bottom:12px">Waybill</div>
+    {% if transfer.waybill %}
+    <div class="info-row"><span>Waybill #</span><span><a href="{% url 'waybill_detail' transfer.waybill.pk %}" class="link" style="font-family:var(--mono);font-weight:600">{{ transfer.waybill.waybill_number }}</a></span></div>
+    <div class="info-row"><span>Status</span><span class="badge badge-{{ transfer.waybill.status }}">{{ transfer.waybill.get_status_display }}</span></div>
+    <div class="info-row"><span>Sent</span><span>{{ transfer.waybill.total_sent }} items</span></div>
+    <div class="info-row"><span>Received</span><span>{{ transfer.waybill.total_received|default:"—" }} items</span></div>
+    {% if transfer.waybill.has_discrepancy %}
+    <div class="info-row"><span>Discrepancy</span><span style="color:var(--red);font-weight:600">Yes</span></div>
+    {% endif %}
+    {% else %}
+    <div style="padding:8px 0;font-size:13px;color:var(--gray-400)">No waybill yet. Waybill is generated when transfer is dispatched.</div>
+    {% endif %}
+    <div class="stat-label" style="margin-top:12px;margin-bottom:8px">Notes</div>
+    <p style="font-size:13px;color:var(--gray-600);margin:0">{{ transfer.notes|default:"No notes." }}</p>
+  </div>
+</div>
+
+<div style="padding:0 24px 24px">
+  <div class="card">
+    <div class="stat-label" style="padding:12px 16px;border-bottom:1px solid var(--gray-200);margin:0">Items ({{ transfer.items.count }})</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>SKU</th><th>Product</th><th>Quantity</th><th>Weight (KG)</th><th>Price</th></tr></thead>
+        <tbody>
+          {% for item in transfer.items.all %}
+          <tr>
+            <td style="font-family:var(--mono);font-size:11px">{{ item.product.sku|default:"—" }}</td>
+            <td>{{ item.product.name|default:"Deleted" }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.weight_kg|default:"—" }}</td>
+            <td>{{ item.quantity|multiply:item.product.unit_cost }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--gray-400)">No items in this transfer.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="dispatch-modal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title">Dispatch Transfer</div>
+    <div style="padding:20px 24px 0">
+      <p style="margin:0 0 16px;font-size:14px;color:var(--gray-600)">
+        Mark {{ transfer.reference }} as in transit? A waybill will be generated.
+      </p>
+      <form method="post" action="{% url 'transfers_dispatch' transfer.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="assigned_driver" id="dispatch-driver-hidden" value="{{ transfer.assigned_driver_id|default:'' }}">
+        <div style="margin-bottom:16px">
+          <div class="form-group" style="margin:0">
+            <label class="form-label">Vehicle</label>
+            <select class="form-control" name="assigned_vehicle" id="dispatch-vehicle-select">
+              <option value="">Select vehicle…</option>
+              {% for v in vehicles %}<option value="{{ v.pk }}" data-driver-id="{{ v.current_driver_id|default:'' }}" {% if transfer.assigned_vehicle_id == v.pk %}selected{% endif %}>{{ v.plate_number }} — {{ v.get_vehicle_type_display }}</option>{% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('dispatch-modal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">Dispatch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="cancel-modal">
+  <div class="modal" style="max-width:400px">
+    <div class="modal-title">Cancel Transfer</div>
+    <p style="padding:20px 24px 0;margin:0;font-size:14px;color:var(--gray-600)">
+      Are you sure you want to cancel {{ transfer.reference }}? This cannot be undone.
+    </p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeModal('cancel-modal')">Close</button>
+      <form method="post" action="{% url 'transfers_cancel' transfer.pk %}" style="display:inline">{% csrf_token %}
+        <button type="submit" class="btn btn-danger">Cancel Transfer</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<style>
+.info-row { display:flex;justify-content:space-between;padding:8px 0;font-size:13px;border-bottom:1px solid var(--gray-100) }
+.info-row span:first-child { color:var(--gray-500) }
+.info-row span:last-child { font-weight:500 }
+
+.badge { display:inline-block;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:600 }
+.badge-draft { background:#F3F4F6;color:#6B7280 }
+.badge-pending { background:#FEF3C7;color:#92400E }
+.badge-in_transit { background:#DBEAFE;color:#1E40AF }
+.badge-complete { background:#D1FAE5;color:#065F46 }
+.badge-received { background:#D1FAE5;color:#065F46 }
+.badge-cancelled { background:#FEE2E2;color:#991B1B }
+.badge-dispatched { background:#DBEAFE;color:#1E40AF }
+.badge-received { background:#D1FAE5;color:#065F46 }
+.badge-partial { background:#FEF3C7;color:#92400E }
+.badge-reconciled { background:#D1FAE5;color:#065F46 }
+</style>
+<script>
+(function() {
+  var vsel = document.getElementById('dispatch-vehicle-select');
+  var hidden = document.getElementById('dispatch-driver-hidden');
+  if (vsel && hidden) {
+    vsel.addEventListener('change', function() {
+      var opt = vsel.options[vsel.selectedIndex];
+      hidden.value = opt.getAttribute('data-driver-id') || '';
+    });
+    if (vsel.value) vsel.dispatchEvent(new Event('change'));
+  }
+})();
+</script>
+{% endblock %}

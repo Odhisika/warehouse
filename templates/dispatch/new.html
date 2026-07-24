@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div class="breadcrumb">Inventory / Dispatch / <span class="current">New Dispatch</span></div>
+  <div style="display:flex;gap:8px">
+    <button type="submit" form="dispatch-form" formaction="{% url 'dispatch_new' %}" class="btn btn-secondary">Save Draft</button>
+    <button type="submit" form="dispatch-form" class="btn btn-primary">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>
+      Create Dispatch
+    </button>
+  </div>
+</div>
+
+<form id="dispatch-form" method="post" style="display:grid;grid-template-columns:340px 1fr;height:calc(100vh - 110px)">
+  {% csrf_token %}
+  <!-- LEFT: Customer + Inventory Lookup -->
+  <div style="border-right:1px solid var(--gray-200);padding:14px;overflow-y:auto">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-500);margin-bottom:8px">Customer Details</div>
+    <select class="form-control" name="customer" style="margin-bottom:10px">
+      <option value="">Select customer…</option>
+      {% for c in customers %}<option value="{{ c.pk }}">{{ c.name }}</option>{% endfor %}
+    </select>
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--gray-500);margin:12px 0 8px">Inventory Lookup</div>
+    <div class="search-bar" style="margin-bottom:12px">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" placeholder="Search SKU, Name or Batch…" id="sku-search">
+    </div>
+    <div id="product-list">
+      {% for p in products %}
+      <div class="sku-card {% if p.stock_qty == 0 %}oos{% elif p.stock_qty <= p.reorder_level %}low{% else %}ready{% endif %}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-size:12.5px;font-weight:600;color:var(--blue)">SKU: {{ p.sku }}</span>
+          {% if p.stock_qty == 0 %}<span class="badge badge-gray" style="font-size:10px">OUT OF STOCK</span>
+          {% elif p.stock_qty <= p.reorder_level %}<span class="badge badge-orange" style="font-size:10px">LOW STOCK</span>
+          {% else %}<span class="badge badge-green" style="font-size:10px">READY</span>{% endif %}
+        </div>
+        <div style="font-size:12.5px;color:var(--gray-600);margin-bottom:6px">{{ p.name }}</div>
+        <div class="batch-item" style="display:inline-block;margin-bottom:6px"><div class="batch-label">Stock</div><div class="batch-qty">{{ p.stock_qty }} units</div></div>
+        {% if p.stock_qty > 0 %}
+        <button type="button" class="btn btn-secondary" style="width:100%;justify-content:center;font-size:12.5px" onclick="addToManifest('{{ p.pk|escapejs }}', '{{ p.sku|escapejs }}', '{{ p.name|escapejs }}', '{{ p.unit_cost|escapejs }}')">+ Add to Dispatch</button>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- RIGHT: Manifest + Totals -->
+  <div style="padding:14px;overflow-y:auto;display:flex;flex-direction:column;gap:12px">
+    <div class="card" style="flex:1">
+      <div class="card-header" style="padding-bottom:10px">
+        <span class="card-title">Manifest Items</span>
+        <div style="font-size:12px;color:var(--gray-500)">LINE ITEMS <strong id="line-count">0</strong></div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>SKU</th><th>Description</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr></thead>
+          <tbody id="manifest-tbody">
+            <tr id="manifest-empty"><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">No items added yet. Search and add from the left panel.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Totals -->
+    <div class="card">
+      <div style="padding:14px">
+        <div class="form-group" style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+          <div style="flex:1"><label class="form-label">Handling Fee ({{ site_settings.currency_symbol }})</label><input id="handling-fee" class="form-control" type="number" step="0.01" name="handling_fee" value="45.00" oninput="updateDispatchTotals()"></div>
+          <div style="flex:1"><label class="form-label">Tax Rate (%)</label><input id="tax-rate" class="form-control" type="number" step="0.1" name="tax_rate" value="15" oninput="updateDispatchTotals()"></div>
+          <div style="flex:1"><label class="form-label">Carrier</label><select class="form-control" name="carrier"><option value="fedex">FedEx Ground</option><option value="dhl">DHL Global</option><option value="swift">Swift Express</option><option value="logitrans">LogiTrans</option></select></div>
+          <div style="flex:1"><label class="form-label">Destination</label><input class="form-control" type="text" name="destination" placeholder="e.g. Chicago Hub"></div>
+        </div>
+        <div class="total-row"><span>Subtotal</span><span id="dispatch-subtotal">{{ site_settings.currency_symbol }}0.00</span></div>
+        <div class="total-row"><span>Handling (Flat)</span><span id="dispatch-handling">{{ site_settings.currency_symbol }}45.00</span></div>
+        <div class="total-row"><span>Tax (VAT 15%)</span><span id="dispatch-tax">{{ site_settings.currency_symbol }}0.00</span></div>
+        <div class="total-row grand"><span>GRAND TOTAL</span><span id="dispatch-grand">{{ site_settings.currency_symbol }}0.00</span></div>
+      </div>
+    </div>
+  </div>
+</form>
+
+{% block extra_js %}
+<script>
+const CURRENCY_SYM = '{{ site_settings.currency_symbol }}';
+const manifestItems = {};
+
+function addToManifest(id, sku, name, price) {
+  id = parseInt(id, 10);
+  price = parseFloat(price);
+  if (manifestItems[id]) {
+    manifestItems[id].qty += 1;
+    document.querySelector(`#manifest-row-${id} .manifest-qty`).value = manifestItems[id].qty;
+  } else {
+    manifestItems[id] = { sku, name, price, qty: 1 };
+    const empty = document.getElementById('manifest-empty');
+    if (empty) empty.remove();
+    const tbody = document.getElementById('manifest-tbody');
+    const tr = document.createElement('tr');
+    tr.id = `manifest-row-${id}`;
+    tr.className = 'manifest-row';
+    tr.dataset.price = price;
+    tr.innerHTML = `
+      <td style="font-family:var(--mono);font-size:11px">${sku}</td>
+      <td>${name}</td>
+      <td><input type="number" class="manifest-qty" name="manifest_qty_${id}" value="1" min="1" style="width:70px;padding:4px 6px;border:1px solid var(--gray-300);border-radius:6px;font-family:var(--font);font-size:13px;text-align:center" oninput="updateDispatchTotals()"></td>
+      <td>${CURRENCY_SYM}${price.toFixed(2)}</td>
+      <td class="manifest-line"><strong>${CURRENCY_SYM}${price.toFixed(2)}</strong></td>
+      <td><button type="button" onclick="removeManifestRow(${id})" style="background:none;border:none;cursor:pointer;color:var(--red)">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+    updateDispatchTotals();
+  }
+  document.getElementById('line-count').textContent = Object.keys(manifestItems).length;
+  updateDispatchTotals();
+}
+
+function removeManifestRow(id) {
+  const row = document.getElementById(`manifest-row-${id}`);
+  if (row) row.remove();
+  delete manifestItems[id];
+  document.getElementById('line-count').textContent = Object.keys(manifestItems).length;
+  if (Object.keys(manifestItems).length === 0) {
+    const tbody = document.getElementById('manifest-tbody');
+    tbody.innerHTML = '<tr id="manifest-empty"><td colspan="6" style="text-align:center;padding:32px;color:var(--gray-400)">No items added yet.</td></tr>';
+  }
+  updateDispatchTotals();
+}
+
+// SKU search filter
+document.getElementById('sku-search').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('#product-list .sku-card').forEach(card => {
+    card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+});
+
+function updateDispatchTotals() {
+  let subtotal = 0;
+  document.querySelectorAll('.manifest-row').forEach(row => {
+    const qty = parseInt(row.querySelector('.manifest-qty').value) || 0;
+    const price = parseFloat(row.dataset.price) || 0;
+    const lineTotal = qty * price;
+    row.querySelector('.manifest-line').innerHTML = '<strong>' + CURRENCY_SYM + lineTotal.toFixed(2) + '</strong>';
+    subtotal += lineTotal;
+  });
+  const handlingFee = parseFloat(document.getElementById('handling-fee').value) || 0;
+  const taxRate = parseFloat(document.getElementById('tax-rate').value) || 0;
+  const tax = subtotal * taxRate / 100;
+  const grand = subtotal + handlingFee + tax;
+  document.getElementById('dispatch-subtotal').textContent = CURRENCY_SYM + subtotal.toFixed(2);
+  document.getElementById('dispatch-handling').textContent = CURRENCY_SYM + handlingFee.toFixed(2);
+  document.getElementById('dispatch-tax').textContent = CURRENCY_SYM + tax.toFixed(2);
+  document.getElementById('dispatch-grand').textContent = CURRENCY_SYM + grand.toFixed(2);
+}
+</script>
+{% endblock %}
+{% endblock %}

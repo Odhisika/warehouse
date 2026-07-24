@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block content %}
+<div style="padding:10px 24px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--gray-200);padding-bottom:12px;background:white">
+  <div style="display:flex;align-items:center;gap:10px">
+    <div class="breadcrumb">Dispatch / <a href="{% url 'dispatch_detail' order.pk %}">{{ order.dispatch_id }}</a> / <span class="current">POD</span></div>
+    <span class="badge badge-green">DELIVERED</span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <a href="{% url 'dispatch_detail' order.pk %}" class="btn btn-secondary">Back to Dispatch</a>
+  </div>
+</div>
+<div style="padding:16px 24px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Delivery Info</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-700)">
+        <div style="display:flex;justify-content:space-between"><span>Recipient</span><strong>{{ pod.recipient_name }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Phone</span><strong>{{ pod.recipient_phone|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Delivered At</span><strong>{{ pod.delivery_timestamp|date:"d/m/Y H:i" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Delivered By</span><strong>{{ pod.delivered_by_id|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>GPS</span><strong>{% if pod.gps_latitude %}{{ pod.gps_latitude }}, {{ pod.gps_longitude }}{% else %}—{% endif %}</strong></div>
+      </div>
+    </div>
+    <div class="section-card" style="padding:16px">
+      <div class="section-label" style="margin-bottom:12px">Dispatch Info</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--gray-700)">
+        <div style="display:flex;justify-content:space-between"><span>Dispatch ID</span><strong>{{ order.dispatch_id }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Customer</span><strong>{{ order.customer|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Destination</span><strong>{{ order.destination|default:"—" }}</strong></div>
+        <div style="display:flex;justify-content:space-between"><span>Grand Total</span><strong>{{ site_settings.currency_symbol }}{{ order.grand_total|floatformat:2 }}</strong></div>
+      </div>
+    </div>
+  </div>
+
+  {% if pod.signature_image %}
+  <div class="section-card" style="padding:16px;margin-top:16px">
+    <div class="section-label" style="margin-bottom:8px">Signature</div>
+    <div style="max-width:320px"><img src="{{ pod.signature_image.url }}" alt="Recipient Signature" style="width:100%;border:1px solid var(--gray-200);border-radius:8px"></div>
+  </div>
+  {% endif %}
+
+  {% if pod.delivery_photo %}
+  <div class="section-card" style="padding:16px;margin-top:16px">
+    <div class="section-label" style="margin-bottom:8px">Delivery Photo</div>
+    <div style="max-width:480px"><img src="{{ pod.delivery_photo.url }}" alt="Delivery Photo" style="width:100%;border:1px solid var(--gray-200);border-radius:8px"></div>
+  </div>
+  {% endif %}
+
+  {% if pod.damage_notes %}
+  <div class="section-card" style="padding:16px;margin-top:16px;border-left:3px solid var(--red)">
+    <div class="section-label" style="margin-bottom:8px;color:var(--red)">Damage Notes</div>
+    <div style="font-size:13px;color:var(--gray-700)">{{ pod.damage_notes|linebreaksbr }}</div>
+  </div>
+  {% endif %}
+
+  {% if pod.delivery_notes %}
+  <div class="section-card" style="padding:16px;margin-top:16px">
+    <div class="section-label" style="margin-bottom:8px">Delivery Notes</div>
+    <div style="font-size:13px;color:var(--gray-700)">{{ pod.delivery_notes|linebreaksbr }}</div>
+  </div>
+  {% endif %}
+
+  <!-- Items Delivered -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-header" style="padding-bottom:10px"><span class="card-title">Items Delivered</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>SKU</th><th>Product</th><th>Quantity</th><th>Unit Price</th><th>Line Total</th></tr></thead>
+        <tbody>
+          {% for item in order.items.all %}
+          <tr>
+            <td style="font-family:var(--mono);font-size:12px">{{ item.product.sku|default:"—" }}</td>
+            <td>{{ item.product.name|default:"—" }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ site_settings.currency_symbol }}{{ item.unit_price|floatformat:2 }}</td>
+            <td><strong>{{ site_settings.currency_symbol }}{{ item.line_total|floatformat:2 }}</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

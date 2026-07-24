@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Fleet Management</div></div>
+  <div class="page-actions">
+    <a href="{% url 'driver_new' %}" class="btn btn-primary">+ Add Driver</a>
+  </div>
+</div>
+<div style="padding:0 24px">
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--gray-200);margin-bottom:16px">
+    <a href="{% url 'vehicle_list' %}" class="btn" style="border-radius:0;padding:8px 16px;border-bottom:2px solid transparent;color:var(--gray-500)">Vehicles</a>
+    <a href="{% url 'driver_list' %}" class="btn" style="border-radius:0;padding:8px 16px;border-bottom:2px solid var(--blue);font-weight:600;color:var(--blue)">Drivers</a>
+    <a href="{% url 'trip_list' %}" class="btn" style="border-radius:0;padding:8px 16px;border-bottom:2px solid transparent;color:var(--gray-500)">Trips</a>
+  </div>
+</div>
+<div style="padding:0 24px 16px">
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>License #</th><th>License Expiry</th><th>Phone</th><th>Branch</th><th>Status</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for d in drivers %}
+          <tr>
+            <td><a href="{% url 'driver_detail' d.pk %}" class="link">{{ d.full_name }}</a></td>
+            <td style="font-family:var(--mono);font-size:12px">{{ d.license_number }}</td>
+            <td>
+              {% if d.license_expiry %}<span style="{% if not d.license_valid %}color:var(--red){% endif %}">{{ d.license_expiry|date:"d/m/Y" }}</span>
+              {% else %}—{% endif %}</td>
+            <td>{{ d.phone|default:"—" }}</td>
+            <td>{% if d.assigned_branch %}<span class="badge badge-blue">{{ d.assigned_branch }}</span>{% else %}—{% endif %}</td>
+            <td>{% if d.is_active %}<span class="badge badge-green">ACTIVE</span>{% else %}<span class="badge badge-gray">INACTIVE</span>{% endif %}</td>
+            <td>
+              <a href="{% url 'driver_detail' d.pk %}" class="btn btn-secondary btn-sm">View</a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--gray-400)">No drivers registered</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
