@@ -15,6 +15,7 @@ git clean -fd
 echo "🔐 Fixing permissions (BEFORE Django runs)..."
 sudo mkdir -p /var/www/warehouse/logs
 sudo touch /var/www/warehouse/logs/payments.log
+suod mkdir -p /var/www/warehouse/media
 
 sudo chown -R lig:www-data /var/www/warehouse
 sudo chmod -R 755 /var/www/warehouse
