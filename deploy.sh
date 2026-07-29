@@ -4,7 +4,7 @@ set -e
 
 echo "🚀 Starting deployment..."
 
-cd /var/www/nexus_warehouse_project
+cd /var/www/warehouse
 source venv/bin/activate
 
 echo "📥 Fetching latest code..."
@@ -13,13 +13,13 @@ git reset --hard origin/main
 git clean -fd
 
 echo "🔐 Fixing permissions (BEFORE Django runs)..."
-sudo mkdir -p /var/www/nexus_warehouse_project/logs
-sudo touch /var/www/nexus_warehouse_project/logs/payments.log
+sudo mkdir -p /var/www/warehouse/logs
+sudo touch /var/www/warehouse/logs/payments.log
 
-sudo chown -R lig:www-data /var/www/nexus_warehouse_project
-sudo chmod -R 755 /var/www/nexus_warehouse_project
-sudo chmod -R 775 /var/www/nexus_warehouse_project/media
-sudo chmod -R 775 /var/www/nexus_warehouse_project/logs
+sudo chown -R lig:www-data /var/www/warehouse
+sudo chmod -R 755 /var/www/warehouse
+sudo chmod -R 775 /var/www/warehouse/media
+sudo chmod -R 775 /var/www/warehouse/logs
 
 echo "📦 Installing dependencies..."
 pip install -r requirements.txt
