@@ -54,6 +54,12 @@ echo "==> Applying database migrations..."
 echo "==> Applying branch database migrations..."
 "$VENV_DIR/bin/python" manage.py migrate_branches
 
+echo "==> Seeding default data (creates ACCRA branch, users, and branch tables if missing)..."
+"$VENV_DIR/bin/python" manage.py seed_data
+
+echo "==> Re-running branch migrations after seeding..."
+"$VENV_DIR/bin/python" manage.py migrate_branches
+
 echo "==> Collecting static files..."
 "$VENV_DIR/bin/python" manage.py collectstatic --noinput
 
