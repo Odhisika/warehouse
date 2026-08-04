@@ -51,6 +51,9 @@ echo "==> Installing dependencies..."
 echo "==> Applying database migrations..."
 "$VENV_DIR/bin/python" manage.py migrate --noinput
 
+echo "==> Applying branch database migrations..."
+"$VENV_DIR/bin/python" manage.py migrate_branches
+
 echo "==> Collecting static files..."
 "$VENV_DIR/bin/python" manage.py collectstatic --noinput
 
