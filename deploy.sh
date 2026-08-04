@@ -1,40 +1,70 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-set -e
+REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$REPO_DIR"
 
-echo "🚀 Starting deployment..."
+echo "==> Backing up databases before deploy..."
+BACKUP_DIR="$REPO_DIR/.backups/$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP_DIR"
+for db in db.sqlite3 branch_dbs/*.sqlite3; do
+    if [ -f "$db" ]; then
+        cp "$db" "$BACKUP_DIR/"
+    fi
+done
+echo "==> Database backups saved to $BACKUP_DIR"
 
-cd /var/www/warehouse
-source venv/bin/activate
+echo "==> Pulling latest changes from git..."
+git pull
 
-echo "📥 Fetching latest code..."
-git fetch origin
-git reset --hard origin/main
-git clean -fd
+echo "==> Fixing ownership and permissions..."
+sudo chown -R lig:www-data "$REPO_DIR" --exclude=venv --exclude=media --exclude=.backups 2>/dev/null || true
+sudo find "$REPO_DIR" -type d -not -path "*/media/*" -not -path "*/venv/*" -not -path "*/.backups/*" -exec chmod 755 {} +
+sudo find "$REPO_DIR" -type f -not -path "*/media/*" -not -path "*/venv/*" -not -path "*/.backups/*" -exec chmod 664 {} +
+sudo chmod +x "$REPO_DIR/deploy.sh"
 
-echo "🔐 Fixing permissions (BEFORE Django runs)..."
-sudo mkdir -p /var/www/warehouse/logs
-sudo touch /var/www/warehouse/logs/payments.log
-sudo mkdir -p /var/www/warehouse/media
+echo "==> Ensuring media directories exist and are writable..."
+sudo mkdir -p "$REPO_DIR"/media/brand
+sudo mkdir -p "$REPO_DIR"/media/signatures
+sudo mkdir -p "$REPO_DIR"/media/delivery_photos
+sudo chown -R www-data:www-data "$REPO_DIR/media"
+sudo find "$REPO_DIR/media" -type d -exec chmod 775 {} +
+sudo find "$REPO_DIR/media" -type f -exec chmod 664 {} +
 
-sudo chown -R lig:www-data /var/www/warehouse
-sudo chmod -R 755 /var/www/warehouse
-sudo chmod -R 775 /var/www/warehouse/media
-sudo chmod -R 775 /var/www/warehouse/logs
+echo "==> Ensuring branch_dbs directory is writable..."
+sudo mkdir -p "$REPO_DIR/branch_dbs"
+sudo chown lig:www-data "$REPO_DIR/branch_dbs"
+sudo chmod 775 "$REPO_DIR/branch_dbs"
 
-echo "📦 Installing dependencies..."
-pip install -r requirements.txt
+echo "==> Adding safe directory for git..."
+sudo git config --global --add safe.directory "$REPO_DIR"
 
-echo "⚙️ Applying database migrations..."
-python manage.py migrate --noinput
 
-echo "🧹 Collecting static files..."
-python manage.py collectstatic --noinput
+VENV_DIR="$REPO_DIR/venv"
 
-echo "🔍 Running Django checks..."
-python manage.py check
+echo "==> Ensuring venv executables are runnable..."
+sudo chmod +x "$VENV_DIR"/bin/*
 
-echo "🔄 Restarting Apache..."
+echo "==> Installing dependencies..."
+"$VENV_DIR/bin/pip" install -r requirements.txt
+
+echo "==> Applying database migrations..."
+"$VENV_DIR/bin/python" manage.py migrate --noinput
+
+echo "==> Collecting static files..."
+"$VENV_DIR/bin/python" manage.py collectstatic --noinput
+
+echo "==> Running Django checks..."
+"$VENV_DIR/bin/python" manage.py check
+
+echo "==> Restarting Apache..."
 sudo systemctl restart apache2
 
-echo "✅ Deployment complete!"
+echo "==> Fixing SQLite database permissions..."
+sudo chown lig:www-data "$REPO_DIR"/db.sqlite3 "$REPO_DIR"/branch_dbs/*.sqlite3 2>/dev/null || true
+sudo chmod 664 "$REPO_DIR"/db.sqlite3 "$REPO_DIR"/branch_dbs/*.sqlite3 2>/dev/null || true
+sudo chown lig:www-data "$REPO_DIR"
+sudo chmod 775 "$REPO_DIR"
+sudo chmod 775 "$REPO_DIR/media"
+
+echo "==> Deployment complete!"

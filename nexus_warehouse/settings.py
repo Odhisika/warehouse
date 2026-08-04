@@ -8,7 +8,7 @@ SECRET_KEY = os.environ.get(
     'django-insecure-2cl)=j5jv-*bav=xt*19)f)aic90rdv@@t1!xk!l#)sj07j%tc'
 )
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', '10.1.61.138,localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'okorasewarehouse.lig.com.gh,localhost,127.0.0.1').split(',')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
